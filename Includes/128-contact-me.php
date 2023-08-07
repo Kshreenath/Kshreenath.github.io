@@ -2,8 +2,8 @@
 
 /*
  * 128 Contact form
- * @author Stefan George
- * @date 07/04/2020
+ * @author K Shreenath Bohra
+ * @date 08/07/2023
  */
 //include_once 'Includes/connect.php';
 //$db = connect();
@@ -33,8 +33,8 @@ if (strlen($feedback) > 500) {
 }
 
 if ($loggedIn) {
-    $to = "stefan.george@weeweefree.com";
-    $subjectToStefan = "Feedback: " . $formType;
+    $to = "kshreenathbohra@gmail.com";
+    $subjectToShree = "Feedback: " . $formType;
     $message = "Name: " . $name . "\n";
     $message .= "Category: " . $formType . "\n";
     $message .= "Email: " . $email . "\n";
@@ -42,7 +42,7 @@ if ($loggedIn) {
     $headers = "From: WeeWeeFree <support@weeweefree.com>" . "\r\n" .
             "Reply-to: support@weeweefree.com" . "\r\n" .
             "X-Mailer: PHP/" . phpversion();
-    if (!mail($to, $subjectToStefan, $message, $headers)) {
+    if (!mail($to, $subjectToShree, $message, $headers)) {
         $fh = fopen('C:\128-feedback.txt', 'a');
         fwrite($fh, "\nDate: " . $date . "\nTime: " . $time . "\nan Cannot receive email from sender");
         fwrite($fh, "uid: " . $uid . "Feedback: " . $feedback . "\nEmail: " . $email . "\nName: " . $name . "\n\n");

@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Semiconductor Impact-Flow &amp; Digital Twin</title>
+<style>
+  :root{
+    --asml:#0f238c; --asml-700:#152c9e; --asml-500:#2540c8; --asml-300:#5c78e6;
+    --yellow:#ffcc00; --yellow-deep:#f2b705;
+    --bg:#eef1f9; --bg2:#e4e9f6; --panel:#ffffff; --panel2:#f4f6fd; --line:#dde3f2;
+    --ink:#111a3d; --muted:#5a6890; --chip:#eaeefb;
+    --good:#0aa06e; --warn:#e08a00; --bad:#d83a4e;
+    --e1:0 1px 2px rgba(15,35,140,.06),0 2px 6px rgba(15,35,140,.06);
+    --e2:0 2px 4px rgba(15,35,140,.07),0 8px 20px rgba(15,35,140,.10);
+    --e3:0 8px 18px rgba(15,35,140,.12),0 24px 48px rgba(15,35,140,.16);
+    --glass:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.55));
+    --c-driver:#0b1b73; --c-segment:#2540c8; --c-company:#0f238c; --c-stage:#7a4fd0;
+    --c-input:#118ab2; --c-geo:#f2b705; --c-risk:#d83a4e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;
+    background:radial-gradient(1200px 500px at 80% -8%,rgba(37,64,200,.10),transparent 60%),
+      radial-gradient(900px 420px at -5% 6%,rgba(15,35,140,.08),transparent 55%),
+      linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed;line-height:1.55}
+  a{color:var(--asml);text-decoration:none}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 26px}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);box-shadow:var(--e1)}
+  .navin{max-width:1320px;margin:0 auto;padding:11px 26px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .brand{font-weight:800;color:var(--asml);letter-spacing:.3px;font-size:15px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:26px;height:26px;border-radius:7px;background:linear-gradient(160deg,var(--asml),var(--asml-500));color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .navlinks{display:flex;gap:15px;margin-left:auto;flex-wrap:wrap}
+  .navlinks a{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:4px 2px;border-bottom:2px solid transparent}
+  .navlinks a:hover{color:var(--asml);border-color:var(--yellow-deep)}
+
+  /* HERO */
+  header.hero{position:relative;overflow:hidden;color:#eaf0ff;
+    background:radial-gradient(700px 260px at 88% -30%,rgba(255,204,0,.22),transparent 60%),
+      linear-gradient(135deg,#0b1b73,#0f238c 52%,#17318f)}
+  header.hero::after{content:"";position:absolute;right:-120px;top:-140px;width:560px;height:560px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,204,0,.20),transparent 68%)}
+  .hero .wrap{padding:56px 26px 60px;position:relative;z-index:2}
+  .eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#b9c6ff;font-weight:800;margin-bottom:15px}
+  .hero h1{font-size:42px;line-height:1.1;font-weight:800;max-width:960px}
+  .hero .sub{font-size:19px;color:#ffe08a;font-weight:600;margin-top:13px}
+  .hero .meta{margin-top:18px;font-size:13px;color:#c6d4e5}
+  .spine{margin-top:28px;background:rgba(255,255,255,.08);border-left:5px solid var(--yellow);border-radius:8px;padding:20px 24px;max-width:980px}
+  .spine .lab{font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--yellow);font-weight:800;margin-bottom:8px}
+  .spine p{font-size:18px;font-style:italic;color:#eef3f9}
+
+  /* SECTIONS */
+  section{padding:48px 0;border-bottom:1px solid var(--line)}
+  .kicker{color:var(--asml);font-weight:800;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+  .sec-h{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .sec-h .n{min-width:30px;height:30px;border-radius:9px;background:linear-gradient(160deg,var(--asml),var(--asml-500));color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;box-shadow:var(--e1)}
+  h2.sec{font-size:27px;color:var(--asml);font-weight:800;line-height:1.15}
+  .lead{font-size:16px;color:#374250;max-width:900px;margin-bottom:24px}
+
+  /* STAT CARDS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .stat{background:var(--glass),var(--panel);border:1px solid var(--line);border-top:4px solid var(--yellow-deep);border-radius:12px;
+    padding:20px 18px;text-align:center;box-shadow:var(--e2)}
+  .stat .num{font-size:32px;font-weight:800;color:var(--asml);line-height:1}
+  .stat .cap{font-size:12px;color:var(--muted);margin-top:9px;font-weight:600}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--e2)}
+  .card h3{color:var(--asml);font-size:16px;margin-bottom:8px;font-weight:800}
+  .card p{font-size:14px;color:#3a4552}
+  .card .tagline{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--warn);margin-bottom:6px}
+
+  /* ACTS TIMELINE */
+  .acts{position:relative;padding-left:26px}
+  .acts::before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:3px;background:linear-gradient(var(--yellow),var(--asml))}
+  .act{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:16px;box-shadow:var(--e2)}
+  .act::before{content:"";position:absolute;left:-26px;top:22px;width:14px;height:14px;border-radius:50%;background:var(--yellow-deep);border:3px solid #fff;box-shadow:0 0 0 2px var(--yellow-deep)}
+  .act .top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:5px}
+  .act .no{font-size:11px;font-weight:800;color:#fff;background:var(--asml);padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .act h3{color:var(--asml);font-size:17px;font-weight:800}
+  .act .rt{margin-left:auto;font-size:12px;color:var(--muted);font-weight:700}
+  .act p{font-size:14px;color:#3a4552}
+  .act .turn{margin-top:8px;font-size:13px;color:var(--asml);border-top:1px dashed var(--line);padding-top:8px}
+  .act .turn b{color:var(--bad)}
+
+  /* ===== Impact flow / Sankey ===== */
+  .flowcard{padding:20px 22px}
+  .spinebar{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+  .spinebar .s{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;color:#fff}
+  .flowwrap{overflow-x:auto;padding:6px 4px}
+  #sankey{display:block;width:100%;min-width:940px}
+  .n-label{font-size:11px;font-weight:600;fill:var(--ink);pointer-events:none}
+  .node rect{transition:filter .12s}
+  .node.dim{opacity:.2}
+  .link{transition:opacity .15s}
+  .link.dim{opacity:.05}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  .tip{position:fixed;pointer-events:none;background:#0b1b73;color:#eaf0ff;font-size:12px;padding:7px 10px;border-radius:8px;box-shadow:var(--e3);opacity:0;transition:.1s;z-index:60;max-width:280px}
+  .segpick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .segbtn{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;box-shadow:var(--e1);transition:.12s}
+  .segbtn:hover{color:var(--asml)}
+  .segbtn.on{background:linear-gradient(160deg,var(--asml),var(--asml-500));color:#fff;border-color:transparent}
+
+  /* ===== Digital twin ===== */
+  .twinbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .twinbar select{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14px;font-weight:700;color:var(--asml);box-shadow:var(--e1)}
+  .twin-hd{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:16px;color:#eaf0ff;
+    background:radial-gradient(600px 200px at 90% -30%,rgba(255,204,0,.18),transparent 60%),linear-gradient(135deg,#0b1b73,#0f238c 55%,#17318f);
+    box-shadow:var(--e3);position:relative;overflow:hidden}
+  .twin-hd::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--yellow),var(--yellow-deep))}
+  .twin-hd .mark{width:56px;height:56px;border-radius:14px;background:linear-gradient(160deg,#fff,#dfe6ff);color:#0b1b73;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px;box-shadow:var(--e2)}
+  .twin-hd h3{margin:0;font-size:21px}
+  .twin-hd .meta{color:#b9c6ff;font-size:13px;margin-top:3px}
+  .twin-hd .nar{color:#dbe4ff;font-size:13px;margin-top:9px;max-width:820px;line-height:1.5}
+  .resil{margin-left:auto;text-align:center;min-width:120px}
+  .resil .ring{width:100px;height:100px;margin:0 auto}
+  .resil .lbl{font-size:11px;color:#b9c6ff;margin-top:2px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+
+  .grid{display:grid;gap:16px;margin-top:16px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .vital{padding:14px 16px;border-radius:14px;background:var(--glass),var(--panel);border:1px solid var(--line);box-shadow:var(--e2);position:relative;overflow:hidden}
+  .vital::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--yellow),var(--yellow-deep))}
+  .vital .l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .vital .v{font-size:22px;font-weight:800;color:var(--asml);margin-top:4px}
+  .vital .d{font-size:11px;color:var(--muted);margin-top:2px}
+  .spark{margin-top:8px;height:26px;width:100%}
+
+  .panel{padding:16px 18px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--e2)}
+  .panel h4{margin:0 0 12px;font-size:14px;color:var(--asml);display:flex;align-items:center;gap:8px}
+  .panel h4 .chiplbl{font-size:10px;font-weight:700;color:var(--muted);background:var(--chip);padding:2px 8px;border-radius:999px;margin-left:auto;text-transform:uppercase;letter-spacing:.4px}
+  .segrow{margin:9px 0}
+  .segrow .t{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+  .segrow .b{height:14px;border-radius:7px;background:var(--chip);overflow:hidden;box-shadow:inset 0 1px 3px rgba(15,35,140,.1)}
+  .segrow .b i{display:block;height:100%;width:0;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+
+  .dep{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start}
+  .depcol h5{margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .depnode{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0;font-size:12px;box-shadow:var(--e1);position:relative}
+  .depnode .tag{float:right;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px}
+  .t-crit{background:rgba(216,58,78,.14);color:var(--bad)}
+  .t-high{background:rgba(224,138,0,.16);color:var(--warn)}
+  .t-med{background:rgba(10,160,110,.14);color:var(--good)}
+  .depnode small{display:block;color:var(--muted);margin-top:3px}
+  .depnode.aff{outline:2px solid var(--bad);outline-offset:1px;box-shadow:0 0 0 4px rgba(216,58,78,.12)}
+  .hub{background:linear-gradient(160deg,var(--asml),var(--asml-500));color:#fff;border-radius:12px;padding:16px 10px;text-align:center;font-weight:800;font-size:13px;box-shadow:var(--e2);min-width:100px;margin-top:22px}
+  .geo .t{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  .geo .b{height:11px;border-radius:6px;background:var(--chip);overflow:hidden}
+  .geo .b i{display:block;height:100%;background:linear-gradient(90deg,var(--asml),var(--asml-500));width:0;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+
+  .heat{width:100%;height:auto}
+  .heat .cell{stroke:#e2e7f5}
+  .heat .bub{fill:var(--bad);opacity:.85;cursor:pointer}
+  .heat .bub:hover{opacity:1}
+  .heat .axl{font-size:10px;fill:var(--muted)}
+  .risktbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:2px}
+  .risktbl th,.risktbl td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .risktbl th{color:var(--muted);font-weight:700}
+  .sev{font-weight:800}
+  .sev5{color:#b21e33}.sev4{color:var(--bad)}.sev3{color:var(--warn)}.sev2{color:#8a8f52}.sev1{color:var(--good)}
+
+  .scn{display:flex;gap:10px;flex-wrap:wrap}
+  .scnbtn{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12.5px;cursor:pointer;box-shadow:var(--e1);user-select:none;transition:.12s}
+  .scnbtn:hover{border-color:var(--asml-300)}
+  .scnbtn.on{background:linear-gradient(160deg,#fff,#fff6da);border-color:var(--yellow-deep);box-shadow:0 0 0 3px rgba(255,204,0,.18)}
+  .scnbtn .dot{width:10px;height:10px;border-radius:50%;background:var(--bad)}
+  .impactbar{height:14px;border-radius:7px;background:var(--chip);overflow:hidden;margin-top:10px}
+  .impactbar i{display:block;height:100%;background:linear-gradient(90deg,#0aa06e,#e08a00 55%,#d83a4e);transition:width .35s;width:0}
+
+  /* value pools ranked bars */
+  .pools{display:flex;flex-direction:column;gap:12px}
+  .pool{display:grid;grid-template-columns:230px 1fr 130px;gap:14px;align-items:center}
+  .pool .name{font-weight:700;color:var(--asml);font-size:14px}
+  .pool .name small{display:block;color:var(--muted);font-weight:500;font-size:11.5px}
+  .pbar{background:var(--chip);border-radius:8px;height:30px;position:relative;overflow:hidden}
+  .pbar .fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--asml),var(--asml-500));width:0;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+  .pbar.crit .fill{background:linear-gradient(90deg,#b21e33,#d83a4e)}
+  .pbar.warn .fill{background:linear-gradient(90deg,#b26b00,#e08a00)}
+  .pool .ev{text-align:right;font-weight:800;color:var(--asml);font-size:14px}
+  .pooltot{margin-top:16px;background:linear-gradient(135deg,#0b1b73,#0f238c);color:#fff;border-radius:12px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;box-shadow:var(--e2)}
+  .pooltot b{font-size:22px}.pooltot span{font-size:13px;color:#c6d4e5}
+
+  .pill{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:700}
+  .pill.v{background:rgba(10,160,110,.14);color:var(--good)}
+  .pill.s{background:rgba(224,138,0,.16);color:var(--warn)}
+
+  .close{background:linear-gradient(135deg,#0b1b73,#0f238c);color:#fff;border-radius:16px;padding:36px 32px;text-align:center;box-shadow:var(--e3);position:relative;overflow:hidden}
+  .close::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--yellow),var(--yellow-deep))}
+  .close h2{font-size:25px;font-weight:800;margin-bottom:12px}
+  .close p{font-size:15px;color:#d6e1ee;max-width:820px;margin:0 auto 20px}
+  .cta{display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .btn{background:var(--yellow);color:#0b1b73;font-weight:800;padding:12px 22px;border-radius:30px;font-size:14px;border:none;cursor:pointer}
+  .btn.ghost{background:transparent;border:1.5px solid #6f88a6;color:#dbe6f2}
+
+  .rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .rv.in{opacity:1;transform:none}
+  .note{font-size:12px;color:var(--muted);margin-top:16px;line-height:1.55}
+  footer{padding:24px 0 44px;color:var(--muted);font-size:12px}
+  .conf{background:#fff8e6;border:1px solid #f0dca0;color:#7a5a00;font-size:12px;padding:8px 14px;border-radius:8px;display:inline-block;font-weight:600}
+  @media(max-width:1000px){.stats,.g4{grid-template-columns:repeat(2,1fr)}.grid2,.grid3,.g2,.g3,.dep{grid-template-columns:1fr}.hero h1{font-size:31px}.pool{grid-template-columns:1fr;gap:6px}.pool .ev{text-align:left}.navlinks{display:none}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="navin">
+    <div class="brand"><span class="mk">◈</span>SEMICONDUCTOR <span style="color:var(--muted)">·</span> IMPACT INTELLIGENCE</div>
+    <div class="navlinks">
+      <a href="#driver">Driver</a>
+      <a href="#flow">Impact flow</a>
+      <a href="#twin">Digital twin</a>
+      <a href="#pools">Risk pools</a>
+      <a href="#chokes">Chokepoints</a>
+      <a href="#decision">Decision</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Supply-chain &amp; engineering research · Semiconductors</div>
+    <h1>From AI demand to a handful of single points of failure</h1>
+    <div class="sub">An impact-flow narrative with a live digital twin for every company in the chain</div>
+    <div class="meta">Anchored to TSMC · NVIDIA · Intel FY2024/FY2025 disclosures and HBM supply-chain concentration research · September 2026</div>
+    <div class="spine">
+      <div class="lab">The spine, in one line</div>
+      <p>A record wave of AI capital does not fan out — it funnels. Read top to bottom and the story is a narrowing: broad demand collapses into three or four chokepoints in Taiwan, Korea, Japan and the Netherlands, and that narrowing is the risk you have to manage.</p>
+    </div>
+  </div>
+</header>
+
+<div class="tip" id="tip"></div>
+
+<!-- ACT I — DRIVER -->
+<section id="driver">
+  <div class="wrap">
+    <div class="kicker rv">Act I — the driver</div>
+    <div class="sec-h rv"><div class="n">1</div><h2 class="sec">Demand is not the constraint — fulfilment is</h2></div>
+    <p class="lead rv">Hyperscaler capital expenditure has become the single largest demand signal in the industry's history. But every dollar chases the same leading-edge foundry, the same advanced packaging, and the same three memory makers. The scarce resource is qualified capacity, not orders.</p>
+    <div class="stats">
+      <div class="stat rv"><div class="num" data-c="500" data-pre="$" data-suf="B+">$0B+</div><div class="cap">Hyperscaler capex 2026 · ~75% to AI infrastructure</div></div>
+      <div class="stat rv"><div class="num" data-c="130.5" data-pre="$" data-suf="B" data-dec="1">$0B</div><div class="cap">NVIDIA FY2025 revenue · +114% YoY · 88% data-center</div></div>
+      <div class="stat rv"><div class="num" data-c="90" data-suf="%">0%</div><div class="cap">AI-grade CoWoS packaging concentrated in Taiwan</div></div>
+      <div class="stat rv"><div class="num" data-c="95" data-suf="%+">0%+</div><div class="cap">Global HBM held by just three suppliers</div></div>
+    </div>
+    <div class="grid2" style="margin-top:24px">
+      <div class="card rv"><div class="tagline">The demand clock</div><h3>Inference now drives two-thirds of compute</h3><p>Roughly two-thirds of AI computation is inference-driven, which consumes HBM continuously rather than in discrete training runs. Demand is structural, not a spike — long-term agreements have effectively pre-purchased available capacity through 2027.</p></div>
+      <div class="card rv"><div class="tagline">The frame</div><h3>Concentration is moving the wrong way</h3><p>The more advanced the chip, the fewer the qualified producers. A single advanced-packaging provider depends on a single substrate supplier, which depends on specialty gases now exposed to Middle East disruption. There is no node where redundancy already exists.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ACT II — IMPACT FLOW -->
+<section id="flow">
+  <div class="wrap">
+    <div class="kicker rv">Act II — the cascade</div>
+    <div class="sec-h rv"><div class="n">2</div><h2 class="sec">How the impact flows, top to bottom</h2></div>
+    <p class="lead rv">Read it as a waterfall. Ribbon width is proportional to the impact each path carries; the seven layers move from demand down to the specific information risks captured at the bottom. Hover a node to isolate its flow. Click a <b style="color:var(--asml)">company</b> to load its digital twin. Switch the lens to re-scope the whole cascade by segment.</p>
+    <div class="card flowcard rv">
+      <div class="segpick" id="segpick"></div>
+      <div class="spinebar" id="spine"></div>
+      <div class="flowwrap"><svg id="sankey" viewBox="0 0 1180 980" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div class="hint">Ribbon width ≈ impact magnitude (directional, anchored to grounded FY2024/FY2025 figures and the HBM supply-chain research — not conserved accounting).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ACT III — DIGITAL TWIN -->
+<section id="twin">
+  <div class="wrap">
+    <div class="kicker rv">Act III — the twin</div>
+    <div class="sec-h rv"><div class="n">3</div><h2 class="sec">Company digital twin — as deep as the disclosures allow</h2></div>
+    <p class="lead rv">Every company in the flow has a twin: a financial engine, a dependency graph from upstream inputs to downstream customers, geographic exposure, a scored risk register with a heat matrix, and a live scenario simulator that stresses the model against real chokepoint shocks.</p>
+    <div class="twinbar rv">
+      <select id="twinSel" onchange="loadTwin(this.value)"></select>
+      <span class="hint" style="margin:0">Financial engine · dependency graph · geographic exposure · risk register · scenario simulator.</span>
+    </div>
+    <div id="twinBody"></div>
+  </div>
+</section>
+
+<!-- RISK POOLS -->
+<section id="pools">
+  <div class="wrap">
+    <div class="kicker rv">What to watch first</div>
+    <div class="sec-h rv"><div class="n">4</div><h2 class="sec">Systemic risk pools, ranked by exposure × severity</h2></div>
+    <p class="lead rv">Translated to a single view across the universe. Magnitudes are illustrative exposure scores built from concentration share × severity × likelihood — shown to make prioritisation defensible, not to forecast a loss. Bars scale to the largest pool.</p>
+    <div class="pools rv" id="poolsWrap"></div>
+    <div class="pooltot rv">
+      <div><b>Taiwan + advanced packaging</b> is the dominant systemic pool</div>
+      <span>A Taiwan-Strait event is low-likelihood but touches ~90% of AI-grade output · specialty-gas and substrate shocks are higher-likelihood, lower-magnitude · export controls are the live regulatory variable</span>
+    </div>
+  </div>
+</section>
+
+<!-- CHOKEPOINTS -->
+<section id="chokes">
+  <div class="wrap">
+    <div class="kicker rv">The five nodes to monitor</div>
+    <div class="sec-h rv"><div class="n">5</div><h2 class="sec">Chokepoints on a quarterly cadence</h2></div>
+    <p class="lead rv">The specific, monitorable signals that sit at the bottom of the flow. Each is a single point of failure where redundancy does not yet exist.</p>
+    <div class="acts">
+      <div class="act rv"><div class="top"><span class="no">01</span><h3>CoWoS advanced packaging</h3><span class="rt">Taiwan · High</span></div><p>Approximately 90% of AI-grade CoWoS capacity sits with TSMC. Intel EMIB/Foveros and Samsung in-house alternatives remain in qualification and will not absorb redirected demand at scale in 2026.</p><div class="turn">Watch: <b>CoWoS capacity additions at TSMC and qualification progress for Intel/Samsung alternatives.</b></div></div>
+      <div class="act rv"><div class="top"><span class="no">02</span><h3>HBM4 ramp</h3><span class="rt">South Korea · High</span></div><p>SK Hynix holds almost 62% of 2026 HBM share; three firms control more than 95%. Micron acknowledged it can meet only 55–60% of core customer demand.</p><div class="turn">Watch: <b>HBM4 ramp at SK Hynix, Samsung and Micron — especially the SK Hynix–TSMC base-die partnership.</b></div></div>
+      <div class="act rv"><div class="top"><span class="no">03</span><h3>EUV lithography</h3><span class="rt">Netherlands · High</span></div><p>No leading-edge chip exists without ASML EUV, and ASML's own EUV depends on a single optics supplier (Zeiss). Export-control policy on China is the defining variable.</p><div class="turn">Watch: <b>BIS export-control actions and any further reversals affecting NVIDIA, AMD, or Samsung/SK Hynix China operations.</b></div></div>
+      <div class="act rv"><div class="top"><span class="no">04</span><h3>Specialty gases &amp; ABF substrate</h3><span class="rt">Japan · Middle East · High</span></div><p>Ajinomoto Build-up Film is effectively single-source; photoresists and specialty gases (helium, neon, krypton) concentrate in Japan, with ~30% of semiconductor-grade helium exposed to Middle East disruption.</p><div class="turn">Watch: <b>Specialty-gas supply restoration, with helium spot pricing as the leading indicator.</b></div></div>
+      <div class="act rv"><div class="top"><span class="no">05</span><h3>Sovereign AI demand</h3><span class="rt">Global · Medium</span></div><p>Sovereign AI programmes from the UAE, Saudi Arabia and India have added a demand layer no 2024 forecast anticipated, moving global allocation on their own.</p><div class="turn">Watch: <b>Sovereign AI procurement announcements that reshuffle allocation priority.</b></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DECISION -->
+<section id="decision" style="border-bottom:none">
+  <div class="wrap">
+    <div class="close rv">
+      <div class="kicker" style="color:var(--yellow)">The read for leadership</div>
+      <h2>Treat 2026 as the year to build visibility, qualify alternatives, and price concentration.</h2>
+      <p>The supply chain is unlikely to materially ease before 2027, and CoWoS alternatives will not qualify at scale before then. Use the twin to stress each supplier against the five chokepoints, embed design-for-allocation discipline, and hold a quarterly monitoring cadence on the nodes above.</p>
+      <div class="cta">
+        <span class="btn" onclick="document.getElementById('twin').scrollIntoView({behavior:'smooth'})">Open a company twin</span>
+        <span class="btn ghost" onclick="document.getElementById('flow').scrollIntoView({behavior:'smooth'})">Replay the impact flow</span>
+      </div>
+    </div>
+    <div class="note" id="prov" style="margin-top:22px"></div>
+  </div>
+</section>
+
+<footer><div class="wrap"><span class="conf">Directional model — for decision framing, not a forecast or valuation opinion</span>
+  <p style="margin-top:12px" id="footnote"></p></div></footer>
+
+<script>
+/* =========================================================================
+   IMPACT-FLOW GRAPH  (custom vertical Sankey — no external libraries)
+   Multiple lenses re-scope the whole cascade by segment.
+   ========================================================================= */
+const CATCOLOR={driver:"#0b1b73",segment:"#2540c8",company:"#0f238c",stage:"#7a4fd0",input:"#118ab2",geo:"#f2b705",risk:"#d83a4e"};
+const LAYER_NAMES=["Demand driver","End segment","Company","Value-chain stage","Critical input","Geography","Information risk"];
+
+/* ---- graph definitions per lens ---- */
+const GRAPHS={
+ "AI / Data Center":{
+  nodes:[
+   {name:"AI & Hyperscaler Capex ($500B+ / 2026)",cat:"driver",layer:0},
+   {name:"Data-Center Compute",cat:"segment",layer:1},{name:"AI Memory (HBM)",cat:"segment",layer:1},{name:"AI Networking",cat:"segment",layer:1},
+   {name:"NVIDIA",cat:"company",layer:2},{name:"AMD",cat:"company",layer:2},{name:"Broadcom",cat:"company",layer:2},{name:"Intel",cat:"company",layer:2},
+   {name:"SK Hynix",cat:"company",layer:2},{name:"Samsung",cat:"company",layer:2},{name:"Micron",cat:"company",layer:2},{name:"Marvell",cat:"company",layer:2},
+   {name:"Leading-edge Foundry",cat:"stage",layer:3},{name:"CoWoS Packaging",cat:"stage",layer:3},{name:"HBM Stacks",cat:"stage",layer:3},{name:"Intel Foundry",cat:"stage",layer:3},
+   {name:"EUV Lithography (ASML)",cat:"input",layer:4},{name:"ABF Substrate",cat:"input",layer:4},{name:"Specialty Gases",cat:"input",layer:4},{name:"Silicon Wafers",cat:"input",layer:4},{name:"Fab & Packaging Capacity",cat:"input",layer:4},
+   {name:"Taiwan",cat:"geo",layer:5},{name:"South Korea",cat:"geo",layer:5},{name:"Netherlands",cat:"geo",layer:5},{name:"Japan",cat:"geo",layer:5},{name:"Middle East",cat:"geo",layer:5},
+   {name:"Single-source failure",cat:"risk",layer:6},{name:"Taiwan-Strait disruption",cat:"risk",layer:6},{name:"Export-control exposure",cat:"risk",layer:6},{name:"HBM allocation shortage",cat:"risk",layer:6},{name:"Specialty-gas / substrate supply",cat:"risk",layer:6}
+  ],
+  links:[
+   ["AI & Hyperscaler Capex ($500B+ / 2026)","Data-Center Compute",300],["AI & Hyperscaler Capex ($500B+ / 2026)","AI Memory (HBM)",120],["AI & Hyperscaler Capex ($500B+ / 2026)","AI Networking",80],
+   ["Data-Center Compute","NVIDIA",190],["Data-Center Compute","AMD",30],["Data-Center Compute","Broadcom",50],["Data-Center Compute","Intel",20],
+   ["AI Memory (HBM)","SK Hynix",62],["AI Memory (HBM)","Samsung",33],["AI Memory (HBM)","Micron",25],
+   ["AI Networking","Broadcom",45],["AI Networking","Marvell",20],["AI Networking","NVIDIA",15],
+   ["NVIDIA","Leading-edge Foundry",130],["NVIDIA","CoWoS Packaging",75],["AMD","Leading-edge Foundry",22],["AMD","CoWoS Packaging",8],
+   ["Broadcom","Leading-edge Foundry",70],["Broadcom","CoWoS Packaging",25],["Intel","Intel Foundry",25],["Intel","Leading-edge Foundry",15],
+   ["SK Hynix","HBM Stacks",62],["Samsung","HBM Stacks",33],["Micron","HBM Stacks",25],["Marvell","Leading-edge Foundry",20],
+   ["Leading-edge Foundry","EUV Lithography (ASML)",120],["Leading-edge Foundry","Fab & Packaging Capacity",90],["Leading-edge Foundry","Silicon Wafers",40],["Leading-edge Foundry","Specialty Gases",30],
+   ["CoWoS Packaging","Fab & Packaging Capacity",70],["CoWoS Packaging","ABF Substrate",60],["CoWoS Packaging","Specialty Gases",20],
+   ["HBM Stacks","EUV Lithography (ASML)",45],["HBM Stacks","Fab & Packaging Capacity",40],["HBM Stacks","Specialty Gases",25],
+   ["Intel Foundry","EUV Lithography (ASML)",15],["Intel Foundry","Silicon Wafers",10],
+   ["EUV Lithography (ASML)","Netherlands",180],["ABF Substrate","Japan",60],["Specialty Gases","Japan",40],["Specialty Gases","Middle East",35],["Silicon Wafers","Japan",30],["Silicon Wafers","Taiwan",20],
+   ["Fab & Packaging Capacity","Taiwan",140],["Fab & Packaging Capacity","South Korea",60],
+   ["Taiwan","Taiwan-Strait disruption",120],["Taiwan","Single-source failure",40],["South Korea","HBM allocation shortage",40],["South Korea","Export-control exposure",20],
+   ["Netherlands","Export-control exposure",100],["Netherlands","Single-source failure",80],["Japan","Specialty-gas / substrate supply",90],["Japan","Single-source failure",40],["Middle East","Specialty-gas / substrate supply",35]
+  ]},
+ "Smartphone / Mobile":{
+  nodes:[
+   {name:"Smartphone Demand (~1.2B units/yr)",cat:"driver",layer:0},
+   {name:"Premium SoC",cat:"segment",layer:1},{name:"Mid/Low SoC",cat:"segment",layer:1},{name:"RF / Connectivity",cat:"segment",layer:1},
+   {name:"Qualcomm",cat:"company",layer:2},{name:"Apple silicon",cat:"company",layer:2},{name:"MediaTek",cat:"company",layer:2},{name:"Broadcom",cat:"company",layer:2},{name:"Samsung",cat:"company",layer:2},
+   {name:"Leading-edge Foundry",cat:"stage",layer:3},{name:"Assembly / Test (OSAT)",cat:"stage",layer:3},{name:"RF Front-end",cat:"stage",layer:3},
+   {name:"EUV Lithography (ASML)",cat:"input",layer:4},{name:"Silicon Wafers",cat:"input",layer:4},{name:"Specialty Gases",cat:"input",layer:4},{name:"Fab & Packaging Capacity",cat:"input",layer:4},
+   {name:"Taiwan",cat:"geo",layer:5},{name:"South Korea",cat:"geo",layer:5},{name:"Netherlands",cat:"geo",layer:5},{name:"Japan",cat:"geo",layer:5},
+   {name:"Taiwan-Strait disruption",cat:"risk",layer:6},{name:"Single-source failure",cat:"risk",layer:6},{name:"Export-control exposure",cat:"risk",layer:6},{name:"Specialty-gas / substrate supply",cat:"risk",layer:6}
+  ],
+  links:[
+   ["Smartphone Demand (~1.2B units/yr)","Premium SoC",160],["Smartphone Demand (~1.2B units/yr)","Mid/Low SoC",120],["Smartphone Demand (~1.2B units/yr)","RF / Connectivity",70],
+   ["Premium SoC","Qualcomm",70],["Premium SoC","Apple silicon",80],["Premium SoC","Samsung",20],
+   ["Mid/Low SoC","MediaTek",80],["Mid/Low SoC","Qualcomm",40],
+   ["RF / Connectivity","Broadcom",40],["RF / Connectivity","Qualcomm",30],
+   ["Qualcomm","Leading-edge Foundry",90],["Qualcomm","Assembly / Test (OSAT)",50],
+   ["Apple silicon","Leading-edge Foundry",80],["MediaTek","Leading-edge Foundry",70],["Samsung","Leading-edge Foundry",20],
+   ["Broadcom","RF Front-end",40],
+   ["Leading-edge Foundry","EUV Lithography (ASML)",120],["Leading-edge Foundry","Fab & Packaging Capacity",90],["Leading-edge Foundry","Silicon Wafers",50],
+   ["Assembly / Test (OSAT)","Fab & Packaging Capacity",50],["RF Front-end","Specialty Gases",25],["Assembly / Test (OSAT)","Specialty Gases",15],
+   ["EUV Lithography (ASML)","Netherlands",120],["Fab & Packaging Capacity","Taiwan",100],["Fab & Packaging Capacity","South Korea",40],["Silicon Wafers","Japan",50],["Specialty Gases","Japan",40],
+   ["Taiwan","Taiwan-Strait disruption",90],["Taiwan","Single-source failure",30],["Netherlands","Export-control exposure",90],["Netherlands","Single-source failure",30],["South Korea","Export-control exposure",30],["Japan","Specialty-gas / substrate supply",90]
+  ]},
+ "Automotive":{
+  nodes:[
+   {name:"Auto Production + EV/ADAS Content Growth",cat:"driver",layer:0},
+   {name:"Power / Analog",cat:"segment",layer:1},{name:"MCU / Compute",cat:"segment",layer:1},{name:"Sensing / ADAS",cat:"segment",layer:1},
+   {name:"NXP",cat:"company",layer:2},{name:"Infineon",cat:"company",layer:2},{name:"STMicro",cat:"company",layer:2},{name:"Texas Instruments",cat:"company",layer:2},{name:"Renesas",cat:"company",layer:2},
+   {name:"Mature-node Foundry",cat:"stage",layer:3},{name:"IDM In-house Fab",cat:"stage",layer:3},{name:"Assembly / Test (OSAT)",cat:"stage",layer:3},
+   {name:"Silicon Wafers",cat:"input",layer:4},{name:"Specialty Gases",cat:"input",layer:4},{name:"Fab & Packaging Capacity",cat:"input",layer:4},{name:"Lead-frames / Substrate",cat:"input",layer:4},
+   {name:"Taiwan",cat:"geo",layer:5},{name:"Europe",cat:"geo",layer:5},{name:"Japan",cat:"geo",layer:5},{name:"United States",cat:"geo",layer:5},
+   {name:"Mature-node shortage",cat:"risk",layer:6},{name:"Tier-1 qualification lag",cat:"risk",layer:6},{name:"Single-source failure",cat:"risk",layer:6},{name:"Specialty-gas / substrate supply",cat:"risk",layer:6}
+  ],
+  links:[
+   ["Auto Production + EV/ADAS Content Growth","Power / Analog",130],["Auto Production + EV/ADAS Content Growth","MCU / Compute",110],["Auto Production + EV/ADAS Content Growth","Sensing / ADAS",90],
+   ["Power / Analog","Infineon",60],["Power / Analog","STMicro",40],["Power / Analog","Texas Instruments",40],
+   ["MCU / Compute","NXP",50],["MCU / Compute","Renesas",45],["MCU / Compute","Infineon",25],
+   ["Sensing / ADAS","NXP",35],["Sensing / ADAS","STMicro",30],["Sensing / ADAS","Texas Instruments",25],
+   ["NXP","Mature-node Foundry",55],["NXP","Assembly / Test (OSAT)",30],["Infineon","IDM In-house Fab",60],["Infineon","Mature-node Foundry",25],
+   ["STMicro","IDM In-house Fab",45],["STMicro","Mature-node Foundry",25],["Texas Instruments","IDM In-house Fab",65],["Renesas","Mature-node Foundry",30],["Renesas","IDM In-house Fab",15],
+   ["Mature-node Foundry","Fab & Packaging Capacity",90],["Mature-node Foundry","Silicon Wafers",50],["IDM In-house Fab","Fab & Packaging Capacity",100],["IDM In-house Fab","Specialty Gases",40],
+   ["Assembly / Test (OSAT)","Lead-frames / Substrate",40],["Assembly / Test (OSAT)","Specialty Gases",20],
+   ["Fab & Packaging Capacity","Taiwan",70],["Fab & Packaging Capacity","Europe",80],["Fab & Packaging Capacity","United States",50],["Silicon Wafers","Japan",50],["Specialty Gases","Japan",40],["Lead-frames / Substrate","Japan",30],
+   ["Taiwan","Mature-node shortage",50],["Taiwan","Single-source failure",20],["Europe","Tier-1 qualification lag",70],["United States","Single-source failure",30],["Japan","Specialty-gas / substrate supply",80],["Japan","Single-source failure",20]
+  ]},
+ "Memory":{
+  nodes:[
+   {name:"AI + Data-Center + PC/Mobile Memory Demand",cat:"driver",layer:0},
+   {name:"HBM",cat:"segment",layer:1},{name:"DRAM",cat:"segment",layer:1},{name:"NAND",cat:"segment",layer:1},
+   {name:"SK Hynix",cat:"company",layer:2},{name:"Samsung",cat:"company",layer:2},{name:"Micron",cat:"company",layer:2},
+   {name:"HBM Stacks",cat:"stage",layer:3},{name:"DRAM Fab",cat:"stage",layer:3},{name:"Advanced Packaging (CoWoS base die)",cat:"stage",layer:3},
+   {name:"EUV Lithography (ASML)",cat:"input",layer:4},{name:"Etch (Lam)",cat:"input",layer:4},{name:"Specialty Gases",cat:"input",layer:4},{name:"Silicon Wafers",cat:"input",layer:4},
+   {name:"South Korea",cat:"geo",layer:5},{name:"Taiwan",cat:"geo",layer:5},{name:"Japan",cat:"geo",layer:5},{name:"United States",cat:"geo",layer:5},{name:"Netherlands",cat:"geo",layer:5},
+   {name:"HBM allocation shortage",cat:"risk",layer:6},{name:"Single-source failure",cat:"risk",layer:6},{name:"Export-control exposure",cat:"risk",layer:6},{name:"Specialty-gas / substrate supply",cat:"risk",layer:6}
+  ],
+  links:[
+   ["AI + Data-Center + PC/Mobile Memory Demand","HBM",140],["AI + Data-Center + PC/Mobile Memory Demand","DRAM",130],["AI + Data-Center + PC/Mobile Memory Demand","NAND",80],
+   ["HBM","SK Hynix",86],["HBM","Samsung",34],["HBM","Micron",20],
+   ["DRAM","Samsung",55],["DRAM","SK Hynix",45],["DRAM","Micron",30],
+   ["NAND","Samsung",35],["NAND","SK Hynix",25],["NAND","Micron",20],
+   ["SK Hynix","HBM Stacks",86],["SK Hynix","DRAM Fab",45],["Samsung","HBM Stacks",34],["Samsung","DRAM Fab",55],["Micron","HBM Stacks",20],["Micron","DRAM Fab",30],
+   ["HBM Stacks","Advanced Packaging (CoWoS base die)",90],["HBM Stacks","EUV Lithography (ASML)",50],["HBM Stacks","Specialty Gases",30],
+   ["DRAM Fab","EUV Lithography (ASML)",60],["DRAM Fab","Etch (Lam)",50],["DRAM Fab","Silicon Wafers",40],["Advanced Packaging (CoWoS base die)","Specialty Gases",30],
+   ["EUV Lithography (ASML)","Netherlands",110],["Etch (Lam)","United States",50],["Specialty Gases","Japan",60],["Silicon Wafers","Japan",40],
+   ["Advanced Packaging (CoWoS base die)","Taiwan",60],
+   ["South Korea","HBM allocation shortage",0.001],
+   ["HBM Stacks","South Korea",70],["DRAM Fab","South Korea",60],
+   ["South Korea","HBM allocation shortage",90],["South Korea","Export-control exposure",30],["Taiwan","Single-source failure",40],["Netherlands","Export-control exposure",90],["Japan","Specialty-gas / substrate supply",90],["United States","Single-source failure",30]
+  ]}
+};
+
+/* ---- layout engine ---- */
+const SVGW=1180, MARGIN=70, PADX=20, ROWGAP=138, TOP=42, THICK=17, SVGNS="http://www.w3.org/2000/svg";
+let NODES=[],LINKS=[],layers={},K=1;
+function buildGraph(lens){
+  const G=GRAPHS[lens];
+  NODES=G.nodes.map(n=>Object.assign({},n,{in:0,out:0,ins:[],outs:[]}));
+  const byName={};NODES.forEach(n=>byName[n.name]=n);
+  LINKS=G.links.filter(l=>l[2]>0.01).map(l=>({source:l[0],target:l[1],value:l[2]}));
+  LINKS.forEach(l=>{l.s=byName[l.source];l.t=byName[l.target];if(!l.s||!l.t)return;l.s.out+=l.value;l.t.in+=l.value;l.s.outs.push(l);l.t.ins.push(l);});
+  LINKS=LINKS.filter(l=>l.s&&l.t);
+  NODES.forEach(n=>n.val=Math.max(n.in,n.out));
+  layers={};NODES.forEach(n=>{(layers[n.layer]=layers[n.layer]||[]).push(n);});
+  K=Infinity;Object.values(layers).forEach(row=>{const sum=row.reduce((a,n)=>a+n.val,0);const avail=SVGW-2*MARGIN-PADX*(row.length-1);K=Math.min(K,avail/sum);});
+  Object.keys(layers).forEach(L=>{const row=layers[L];const total=row.reduce((a,n)=>a+n.val*K,0)+PADX*(row.length-1);let cur=(SVGW-total)/2;const y=TOP+(+L)*ROWGAP;
+    row.forEach(n=>{n.w=n.val*K;n.x0=cur;n.x1=cur+n.w;n.y0=y;n.y1=y+THICK;cur+=n.w+PADX;n.outOff=n.x0+(n.w-n.out*K)/2;n.inOff=n.x0+(n.w-n.in*K)/2;});});
+  LINKS.slice().sort((a,b)=>a.s.layer-b.s.layer||a.s.x0-b.s.x0||a.t.x0-b.t.x0).forEach(l=>{l.sxL=l.s.outOff;l.sxR=l.s.outOff+l.value*K;l.s.outOff=l.sxR;});
+  LINKS.slice().sort((a,b)=>a.t.layer-b.t.layer||a.t.x0-b.t.x0||a.s.x0-b.s.x0).forEach(l=>{l.txL=l.t.inOff;l.txR=l.t.inOff+l.value*K;l.t.inOff=l.txR;});
+}
+function el(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function ribbon(l){const sy=l.s.y1,ty=l.t.y0,mid=(sy+ty)/2;return `M${l.sxL},${sy} C${l.sxL},${mid} ${l.txL},${mid} ${l.txL},${ty} L${l.txR},${ty} C${l.txR},${mid} ${l.sxR},${mid} ${l.sxR},${sy} Z`;}
+function drawSankey(){
+  const svg=document.getElementById('sankey');const maxLayer=Math.max(...NODES.map(n=>n.layer));
+  svg.setAttribute('viewBox',`0 0 ${SVGW} ${TOP+maxLayer*ROWGAP+70}`);svg.innerHTML='';
+  const gL=el('g',{}),gN=el('g',{});
+  LINKS.forEach(l=>{const p=el('path',{d:ribbon(l),fill:CATCOLOR[l.s.cat],'fill-opacity':0.32,class:'link'});l.el=p;
+    p.addEventListener('mousemove',e=>showTip(e,`<b>${l.s.name}</b> → <b>${l.t.name}</b><br>impact ≈ ${l.value}`));p.addEventListener('mouseleave',hideTip);gL.appendChild(p);});
+  NODES.forEach(n=>{const g=el('g',{class:'node '+n.cat});n.g=g;
+    const r=el('rect',{x:n.x0,y:n.y0,width:Math.max(2,n.w),height:THICK,rx:5,fill:CATCOLOR[n.cat],filter:'drop-shadow(0 2px 3px rgba(15,35,140,.25))'});g.appendChild(r);
+    const cx=(n.x0+n.x1)/2,above=n.layer!==maxLayer;
+    const lbl=el('text',{x:cx,y:above?n.y0-6:n.y1+14,'text-anchor':'middle',class:'n-label'});lbl.textContent=n.name.length>30?n.name.slice(0,29)+'…':n.name;g.appendChild(lbl);
+    g.addEventListener('mouseenter',()=>focusNode(n));g.addEventListener('mouseleave',clearFocus);
+    g.addEventListener('mousemove',e=>showTip(e,`<b>${n.name}</b><br>${LAYER_NAMES[n.layer]} · impact ≈ ${Math.round(n.val)}`));
+    if(n.cat==='company'&&TWIN[n.name]){r.style.cursor='pointer';g.style.cursor='pointer';
+      g.addEventListener('click',()=>{document.getElementById('twinSel').value=n.name;loadTwin(n.name);document.getElementById('twin').scrollIntoView({behavior:'smooth',block:'start'});});}
+    gN.appendChild(g);});
+  svg.appendChild(gL);svg.appendChild(gN);
+}
+function focusNode(n){const keep=new Set([n]);LINKS.forEach(l=>{if(l.s===n)keep.add(l.t);if(l.t===n)keep.add(l.s);});
+  NODES.forEach(m=>m.g.classList.toggle('dim',!keep.has(m)));LINKS.forEach(l=>l.el.classList.toggle('dim',!(l.s===n||l.t===n)));}
+function clearFocus(){NODES.forEach(m=>m.g.classList.remove('dim'));LINKS.forEach(l=>l.el.classList.remove('dim'));}
+function showTip(e,html){const t=document.getElementById('tip');t.innerHTML=html;t.style.opacity=1;t.style.left=Math.min(e.clientX+14,window.innerWidth-280)+'px';t.style.top=(e.clientY+14)+'px';}
+function hideTip(){document.getElementById('tip').style.opacity=0;}
+function drawSpine(){document.getElementById('spine').innerHTML=LAYER_NAMES.map((s,i)=>`<span class="s" style="background:${CATCOLOR[Object.keys(CATCOLOR)[i]]}">${i+1}. ${s}</span>`).join('');}
+function drawSegpick(){document.getElementById('segpick').innerHTML=Object.keys(GRAPHS).map((g,i)=>
+  `<span class="segbtn ${i===0?'on':''}" onclick="setLens('${g.replace(/'/g,"")}',this)">${g}</span>`).join('');}
+function setLens(g,elm){document.querySelectorAll('.segbtn').forEach(b=>b.classList.remove('on'));if(elm)elm.classList.add('on');buildGraph(g);drawSankey();}
+
+/* =========================================================================
+   DIGITAL TWINS
+   ========================================================================= */
+const SEG_COLORS={"HPC / Data Center":"#0f238c","Smartphone / Mobile":"#2540c8","Automotive":"#f2b705","Industrial":"#8a63d2","IoT / Edge":"#118ab2","Memory":"#d83a4e","Equipment":"#ffcc00","Other":"#9aa6cc"};
+const SCEN={taiwan:{label:"Taiwan-Strait disruption",icon:"🌊"},hbm:{label:"HBM allocation shortage",icon:"🧠"},euv:{label:"EUV / ASML bottleneck",icon:"🔬"},gas:{label:"Specialty-gas / substrate shock",icon:"⚗️"},export:{label:"US–China export controls",icon:"🚧"}};
+
+const TWIN={
+ "NVIDIA":{model:"Fabless",fy:"FY2025",rev:130.5,gm:75.0,om:62.4,net:55.8,heads:36000,rnd:12.9,conf:"verified",rtrend:[27,61,130],
+  nar:"The data-center infrastructure monopoly. Design sits in the US, but ~90% of manufacturing value flows through Taiwan (TSMC) and its CoWoS packaging, with HBM sourced from three Korean/US suppliers. Demand is real but the fulfilment path is a stack of single points of failure.",
+  segments:{"HPC / Data Center":115.2,"Automotive":1.7,"IoT / Edge":1.9,"Other":11.7},
+  upstream:[{n:"TSMC — leading-edge foundry",t:"crit",note:"3/4nm, effectively single-source",tags:["taiwan","euv"]},{n:"TSMC CoWoS — advanced packaging",t:"crit",note:"~90% of AI-grade capacity",tags:["taiwan","gas"]},{n:"SK Hynix / Micron / Samsung — HBM",t:"crit",note:"3 firms >95% of HBM",tags:["hbm"]},{n:"ASML — EUV (via TSMC)",t:"high",note:"litho chokepoint",tags:["euv","export"]},{n:"Ajinomoto ABF substrate",t:"high",note:"single supplier",tags:["gas"]},{n:"Synopsys / Cadence — EDA",t:"med",note:"design tools",tags:[]},{n:"Arm — IP",t:"med",note:"CPU IP (Grace)",tags:[]}],
+  downstream:[{n:"Microsoft",s:"~19%"},{n:"Meta",s:"~13%"},{n:"Amazon",s:"~6%"},{n:"Google",s:"~6%"},{n:"Oracle / CoreWeave",s:"~10%"}],
+  geo:{"Taiwan (mfg via TSMC)":90,"United States (design)":100,"South Korea (HBM)":70,"Japan (materials)":60},
+  risks:[{r:"Foundry single-source (TSMC)",s:5,l:3,ty:"Supply"},{r:"CoWoS packaging bottleneck",s:5,l:4,ty:"Supply"},{r:"HBM allocation shortage",s:4,l:4,ty:"Supply"},{r:"Taiwan-Strait geopolitics",s:5,l:2,ty:"Geopolitical"},{r:"China export controls",s:3,l:4,ty:"Regulatory"},{r:"Customer concentration (hyperscalers)",s:3,l:3,ty:"Demand"}],
+  exp:{taiwan:.95,hbm:.85,euv:.6,gas:.45,export:.7}},
+ "TSMC":{model:"Foundry",fy:"FY2024",rev:90.1,gm:56.1,om:45.7,net:40.5,heads:83000,rnd:6.4,conf:"verified",rtrend:[76,69,90],
+  nar:"The pivot point of the entire industry. Everyone upstream (ASML, materials) feeds it; everyone downstream (NVIDIA, Apple, AMD) depends on it. Geographic concentration in Taiwan is the single largest systemic exposure in modern electronics — mitigated only slowly by Arizona, Japan and Germany fabs.",
+  segments:{"HPC / Data Center":46.0,"Smartphone / Mobile":31.5,"IoT / Edge":5.4,"Automotive":4.5,"Other":2.7},
+  upstream:[{n:"ASML — EUV lithography",t:"crit",note:"single-source for leading edge",tags:["euv","export"]},{n:"Applied Materials / Lam / KLA",t:"high",note:"deposition, etch, metrology",tags:["export"]},{n:"Shin-Etsu / SUMCO — wafers",t:"high",note:"300mm silicon",tags:["gas"]},{n:"Specialty gases (JP)",t:"high",note:"helium, neon, etc.",tags:["gas"]},{n:"Ajinomoto ABF substrate",t:"high",note:"advanced packaging",tags:["gas"]}],
+  downstream:[{n:"Apple",s:"~25%"},{n:"NVIDIA",s:"~11%"},{n:"AMD",s:"~7%"},{n:"Broadcom",s:"~7%"},{n:"Qualcomm / MediaTek",s:"~14%"}],
+  geo:{"Taiwan (fab concentration)":90,"United States (Arizona)":8,"Japan (Kumamoto)":6,"Germany (Dresden)":4,"Netherlands (EUV)":100},
+  risks:[{r:"Taiwan-Strait geopolitics",s:5,l:2,ty:"Geopolitical"},{r:"EUV single-source (ASML)",s:4,l:2,ty:"Supply"},{r:"Water / power availability",s:3,l:3,ty:"Operational"},{r:"Customer concentration (Apple+NVIDIA)",s:3,l:3,ty:"Demand"},{r:"US–China export controls",s:3,l:3,ty:"Regulatory"}],
+  exp:{taiwan:1.0,hbm:.2,euv:.9,gas:.6,export:.6}},
+ "SK Hynix":{model:"Memory",fy:"FY2024",rev:47.5,gm:38.0,om:24.0,net:15.0,heads:32000,rnd:3.8,conf:"seed",rtrend:[27,24,47],
+  nar:"The HBM leader (~62% share) and the memory kingmaker for the AI cycle. Fortunes are tied almost entirely to NVIDIA demand and to Korea's fab concentration. Upside is enormous; so is customer- and geography-concentration risk.",
+  segments:{"Memory":47.5},
+  upstream:[{n:"ASML / Lam — equipment",t:"high",note:"litho + etch",tags:["euv","export"]},{n:"Specialty gases (JP)",t:"high",note:"process gases",tags:["gas"]},{n:"TSMC — HBM4 base die",t:"high",note:"logic base-die partnership",tags:["taiwan"]},{n:"Silicon wafers",t:"med",note:"substrate",tags:["gas"]}],
+  downstream:[{n:"NVIDIA",s:"dominant"},{n:"AMD",s:"growing"},{n:"Hyperscaler ASICs",s:"rising"}],
+  geo:{"South Korea (~70% HBM fab)":70,"Japan (materials)":60,"Taiwan (base die)":30,"China (legacy DRAM)":30},
+  risks:[{r:"Customer concentration (NVIDIA)",s:4,l:4,ty:"Demand"},{r:"HBM allocation / capacity",s:4,l:3,ty:"Supply"},{r:"China export controls",s:3,l:3,ty:"Regulatory"},{r:"Specialty-gas supply",s:3,l:3,ty:"Supply"},{r:"Capex intensity / cyclicality",s:3,l:3,ty:"Financial"}],
+  exp:{taiwan:.3,hbm:1.0,euv:.5,gas:.6,export:.6}},
+ "ASML":{model:"Equipment",fy:"FY2024",rev:29.6,gm:51.0,om:32.0,net:24.0,heads:44000,rnd:4.3,conf:"seed",rtrend:[21,27,29],
+  nar:"The upstream monopoly. No leading-edge chip exists without ASML EUV. That makes it the calmest node financially and the most exposed politically — export controls on China are the defining variable, and its own EUV depends on a single optics supplier (Zeiss).",
+  segments:{"Equipment":29.6},
+  upstream:[{n:"Carl Zeiss SMT — optics",t:"crit",note:"single-source EUV optics",tags:["euv"]},{n:"Cymer — light source",t:"high",note:"EUV plasma source",tags:["euv"]},{n:"~5,000 tier suppliers",t:"med",note:"precision components",tags:[]}],
+  downstream:[{n:"TSMC",s:"largest"},{n:"Samsung",s:"large"},{n:"Intel",s:"large"},{n:"SK Hynix / Micron",s:"memory"}],
+  geo:{"Netherlands (assembly)":100,"Germany (Zeiss optics)":80,"United States (light source)":40,"China (revenue exposure)":40},
+  risks:[{r:"US/NL–China export controls",s:5,l:4,ty:"Regulatory"},{r:"Zeiss single-source optics",s:4,l:2,ty:"Supply"},{r:"Customer capex cyclicality",s:3,l:3,ty:"Demand"},{r:"China demand pull-back",s:3,l:3,ty:"Demand"}],
+  exp:{taiwan:.3,hbm:.3,euv:1.0,gas:.2,export:.95}},
+ "Intel":{model:"IDM",fy:"FY2024",rev:53.1,gm:32.7,om:-22.0,net:-18.8,heads:108900,rnd:16.5,conf:"verified",rtrend:[63,54,53],
+  nar:"A turnaround in progress. Owns its fabs (a resilience advantage) but is burning cash on the foundry build-out while losing the AI-accelerator race. Execution risk on the process roadmap dominates every other exposure.",
+  segments:{"HPC / Data Center":12.8,"IoT / Edge":30.3,"Other":10.0},
+  upstream:[{n:"ASML — EUV",t:"high",note:"18A / roadmap",tags:["euv","export"]},{n:"Applied Materials / Lam",t:"high",note:"process equipment",tags:["export"]},{n:"TSMC (partial outsourcing)",t:"med",note:"tiles/chiplets",tags:["taiwan"]},{n:"Wafers / gases",t:"med",note:"materials",tags:["gas"]}],
+  downstream:[{n:"Dell / HP / Lenovo",s:"PC OEMs"},{n:"Hyperscalers (Xeon)",s:"server"},{n:"Foundry customers",s:"emerging"}],
+  geo:{"United States (fabs)":70,"Ireland":20,"Israel":15,"Taiwan (outsourced)":20},
+  risks:[{r:"Foundry ramp execution (18A)",s:5,l:4,ty:"Operational"},{r:"Margin collapse / cash burn",s:5,l:4,ty:"Financial"},{r:"AI-accelerator competition",s:4,l:4,ty:"Demand"},{r:"Restructuring / headcount",s:3,l:4,ty:"Operational"},{r:"Export controls",s:2,l:3,ty:"Regulatory"}],
+  exp:{taiwan:.4,hbm:.2,euv:.6,gas:.4,export:.5}},
+ "Broadcom":{model:"Fabless",fy:"FY2024",rev:51.6,gm:63.0,om:24.0,net:14.0,heads:37000,rnd:9.3,conf:"seed",rtrend:[33,36,52],
+  nar:"The custom-ASIC and networking power behind hyperscaler AI. Rides the same TSMC + CoWoS path as NVIDIA but diversified across networking and infrastructure software (VMware).",
+  segments:{"HPC / Data Center":30.1,"Smartphone / Mobile":8.0,"Industrial":6.0,"Other":7.5},
+  upstream:[{n:"TSMC — foundry",t:"crit",note:"custom ASICs",tags:["taiwan","euv"]},{n:"TSMC CoWoS",t:"high",note:"packaging",tags:["taiwan","gas"]},{n:"EDA (Synopsys/Cadence)",t:"med",note:"design",tags:[]}],
+  downstream:[{n:"Google (TPU)",s:"custom"},{n:"Meta",s:"custom"},{n:"Apple",s:"RF/connectivity"}],
+  geo:{"Taiwan (mfg)":85,"United States (design)":100,"Japan (materials)":50},
+  risks:[{r:"Foundry / packaging concentration",s:4,l:3,ty:"Supply"},{r:"Customer concentration (Apple/Google)",s:4,l:3,ty:"Demand"},{r:"Export controls",s:3,l:3,ty:"Regulatory"}],
+  exp:{taiwan:.85,hbm:.4,euv:.55,gas:.4,export:.6}},
+ "AMD":{model:"Fabless",fy:"FY2024",rev:25.8,gm:49.0,om:8.0,net:6.0,heads:28000,rnd:6.5,conf:"seed",rtrend:[24,23,26],
+  nar:"The credible #2 in AI accelerators (MI300 series) and the CPU challenger. Shares NVIDIA's exact fulfilment stack — TSMC, CoWoS, HBM — so its ceiling is set as much by allocation as by design wins.",
+  segments:{"HPC / Data Center":12.6,"IoT / Edge":7.1,"Industrial":2.3,"Other":3.8},
+  upstream:[{n:"TSMC — foundry",t:"crit",note:"CPU+GPU",tags:["taiwan","euv"]},{n:"TSMC CoWoS",t:"crit",note:"MI300 packaging",tags:["taiwan","gas"]},{n:"HBM suppliers",t:"high",note:"MI300 memory",tags:["hbm"]}],
+  downstream:[{n:"Microsoft / Meta",s:"MI300"},{n:"PC OEMs",s:"Ryzen"},{n:"Server OEMs",s:"EPYC"}],
+  geo:{"Taiwan (mfg)":90,"United States (design)":100,"South Korea (HBM)":70},
+  risks:[{r:"Allocation vs NVIDIA",s:4,l:4,ty:"Supply"},{r:"CoWoS / HBM bottleneck",s:4,l:4,ty:"Supply"},{r:"Taiwan concentration",s:4,l:2,ty:"Geopolitical"}],
+  exp:{taiwan:.9,hbm:.8,euv:.55,gas:.45,export:.6}},
+ "Micron":{model:"Memory",fy:"FY2024",rev:25.1,gm:22.0,om:9.0,net:3.0,heads:48000,rnd:3.1,conf:"seed",rtrend:[31,15,25],
+  nar:"The only US-based HBM/DRAM maker — a strategic asset for supply diversification, but the #3 in HBM racing to close the gap with SK Hynix and Samsung.",
+  segments:{"Memory":25.1},
+  upstream:[{n:"ASML / Lam — equipment",t:"high",note:"DRAM scaling",tags:["euv","export"]},{n:"Specialty gases",t:"high",note:"process",tags:["gas"]}],
+  downstream:[{n:"NVIDIA",s:"HBM3E"},{n:"Hyperscalers",s:"DRAM"},{n:"PC/mobile",s:"DRAM/NAND"}],
+  geo:{"United States (fabs)":40,"Taiwan (assembly)":40,"Japan (Hiroshima)":30,"Singapore":20},
+  risks:[{r:"HBM catch-up execution",s:4,l:3,ty:"Operational"},{r:"Memory price cyclicality",s:4,l:3,ty:"Financial"},{r:"China export controls",s:3,l:3,ty:"Regulatory"}],
+  exp:{taiwan:.4,hbm:.9,euv:.5,gas:.6,export:.5}},
+ "Samsung":{model:"Memory",fy:"FY2024",rev:79.1,gm:38.0,om:15.0,net:12.0,heads:75000,rnd:8.0,conf:"seed",rtrend:[72,60,79],
+  nar:"The only company competing across memory, foundry and packaging simultaneously — huge scale, but trailing SK Hynix on HBM qualification and TSMC on leading-edge yield.",
+  segments:{"Memory":52.0,"HPC / Data Center":14.0,"Smartphone / Mobile":9.0,"Other":4.1},
+  upstream:[{n:"ASML — EUV",t:"high",note:"memory+foundry",tags:["euv","export"]},{n:"Specialty gases",t:"high",note:"process",tags:["gas"]}],
+  downstream:[{n:"NVIDIA (qualifying)",s:"HBM"},{n:"Mobile OEMs",s:"DRAM"},{n:"Foundry clients",s:"logic"}],
+  geo:{"South Korea (fabs)":75,"United States (Taylor, TX)":15,"Japan (materials)":50},
+  risks:[{r:"HBM qualification lag",s:4,l:3,ty:"Operational"},{r:"Foundry yield vs TSMC",s:4,l:3,ty:"Operational"},{r:"Korea geographic concentration",s:3,l:2,ty:"Geopolitical"}],
+  exp:{taiwan:.3,hbm:.8,euv:.7,gas:.6,export:.5}},
+ "Marvell":{model:"Fabless",fy:"FY2025",rev:5.8,gm:46.0,om:8.0,net:2.0,heads:6500,rnd:1.9,conf:"seed",rtrend:[6,5,6],
+  nar:"The custom-silicon and optical-DSP specialist riding the AI-networking wave. Small but strategically placed between the compute and the interconnect.",
+  segments:{"HPC / Data Center":4.0,"Industrial":0.6,"Automotive":0.4,"Other":0.8},
+  upstream:[{n:"TSMC — foundry",t:"crit",note:"custom ASIC/optical",tags:["taiwan","euv"]},{n:"EDA tools",t:"med",note:"design",tags:[]}],
+  downstream:[{n:"Hyperscalers",s:"custom + optical"},{n:"Carriers",s:"networking"}],
+  geo:{"Taiwan (mfg)":85,"United States (design)":100},
+  risks:[{r:"Foundry concentration",s:4,l:3,ty:"Supply"},{r:"Customer concentration",s:4,l:3,ty:"Demand"},{r:"AI-networking competition",s:3,l:3,ty:"Demand"}],
+  exp:{taiwan:.85,hbm:.3,euv:.5,gas:.4,export:.5}}
+};
+const TWIN_ORDER=["NVIDIA","TSMC","SK Hynix","ASML","Intel","Broadcom","AMD","Micron","Samsung","Marvell"];
+
+let activeScen={};
+function loadTwin(name){
+  const d=TWIN[name];activeScen={};
+  const seg=d.segments,stot=Object.values(seg).reduce((a,b)=>a+b,0)||1;
+  const segHTML=Object.entries(seg).sort((a,b)=>b[1]-a[1]).map(([s,v])=>
+    `<div class="segrow"><div class="t"><span>${s}</span><span>$${v.toFixed(1)}B · ${Math.round(v/stot*100)}%</span></div><div class="b"><i data-w="${v/stot*100}" style="background:${SEG_COLORS[s]||'#9aa6cc'}"></i></div></div>`).join('');
+  const up=d.upstream.map(u=>`<div class="depnode" data-tags="${(u.tags||[]).join(',')}"><span class="tag t-${u.t}">${u.t==='crit'?'critical':u.t}</span>${u.n}<small>${u.note}</small></div>`).join('');
+  const down=d.downstream.map(x=>`<div class="depnode">${x.n}<small>share: ${x.s}</small></div>`).join('');
+  const geoHTML=Object.entries(d.geo).map(([g,v])=>`<div class="geo" style="margin:8px 0"><div class="t"><span>${g}</span><span>${v}%</span></div><div class="b"><i data-w="${v}"></i></div></div>`).join('');
+  const risksSorted=d.risks.slice().sort((a,b)=>(b.s*b.l)-(a.s*a.l));
+  const riskRows=risksSorted.map(r=>`<tr><td>${r.r}</td><td>${r.ty}</td><td class="sev sev${r.s}">${r.s}</td><td>${r.l}</td><td class="sev sev${Math.min(5,Math.round(r.s*r.l/5))}">${r.s*r.l}</td></tr>`).join('');
+  const scnHTML=Object.entries(SCEN).map(([k,v])=>`<div class="scnbtn" id="scn-${k}" onclick="toggleScen('${k}')"><span class="dot"></span>${v.icon} ${v.label}</div>`).join('');
+  const spark=sparkline(d.rtrend);
+  document.getElementById('twinBody').innerHTML=`
+   <div class="twin-hd rv in">
+     <div class="mark">${name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()}</div>
+     <div><h3>${name} <span class="pill ${d.conf==='verified'?'v':'s'}" style="vertical-align:middle">${d.conf}</span></h3>
+       <div class="meta">${d.model} · ${d.fy} · digital twin</div><div class="nar">${d.nar}</div></div>
+     <div class="resil"><svg class="ring" id="ring" viewBox="0 0 120 120"></svg><div class="lbl">Resilience</div></div>
+   </div>
+   <div class="grid g4">
+     <div class="vital"><div class="l">Revenue</div><div class="v">$${d.rev.toFixed(1)}B</div><div class="d">${d.fy} · 3-yr trend</div>${spark}</div>
+     <div class="vital"><div class="l">Gross margin</div><div class="v">${d.gm.toFixed(0)}%</div><div class="d">operating ${d.om.toFixed(0)}%</div></div>
+     <div class="vital"><div class="l">Net margin</div><div class="v" style="color:${d.net<0?'var(--bad)':'var(--asml)'}">${d.net.toFixed(0)}%</div><div class="d">headcount ${d.heads.toLocaleString()}</div></div>
+     <div class="vital"><div class="l">R&amp;D</div><div class="v">$${d.rnd.toFixed(1)}B</div><div class="d">${(d.rnd/d.rev*100).toFixed(0)}% of revenue</div></div>
+   </div>
+   <div class="grid g2">
+     <div class="panel"><h4>Revenue engine — by segment <span class="chiplbl">financials</span></h4>${segHTML}</div>
+     <div class="panel"><h4>Geographic exposure <span class="chiplbl">footprint</span></h4>${geoHTML}<div class="note" style="margin-top:8px">Share of manufacturing / revenue value exposed to each geography (illustrative).</div></div>
+   </div>
+   <div class="panel" style="margin-top:16px"><h4>Dependency graph — upstream → company → downstream <span class="chiplbl">value chain</span></h4>
+     <div class="dep"><div class="depcol"><h5>Upstream dependencies</h5>${up}</div>
+       <div class="depcol" style="text-align:center"><div class="hub">${name}</div><div style="font-size:11px;color:var(--muted);margin-top:8px">core node</div></div>
+       <div class="depcol"><h5>Downstream customers</h5>${down}</div></div>
+     <div class="note">Nodes outlined in red are the ones a currently-active scenario would impair.</div></div>
+   <div class="grid g2" style="margin-top:16px">
+     <div class="panel"><h4>Risk register <span class="chiplbl">scored</span></h4><table class="risktbl"><thead><tr><th>Risk</th><th>Type</th><th>Sev</th><th>Lik</th><th>Score</th></tr></thead><tbody>${riskRows}</tbody></table></div>
+     <div class="panel"><h4>Heat matrix — severity × likelihood <span class="chiplbl">exposure</span></h4><svg class="heat" id="heat" viewBox="0 0 320 240"></svg></div>
+   </div>
+   <div class="panel" style="margin-top:16px"><h4>Scenario simulator — stress the twin <span class="chiplbl">live</span></h4>
+     <div class="note" style="margin:0 0 10px">Toggle chokepoint shocks. The resilience ring, impact bar and dependency graph update live from this company's exposure profile.</div>
+     <div class="scn">${scnHTML}</div>
+     <div style="margin-top:14px;font-size:13px"><b>Modelled revenue-at-risk under active scenarios:</b> <span id="impactPct">0%</span></div>
+     <div class="impactbar"><i id="impactBar"></i></div>
+     <div class="note" id="scenNote">No scenario active — baseline resilience shown.</div></div>`;
+  drawHeat(risksSorted);recompute();
+  requestAnimationFrame(()=>document.querySelectorAll('#twinBody .segrow .b i, #twinBody .geo .b i').forEach(i=>i.style.width=i.dataset.w+'%'));
+}
+function sparkline(arr){if(!arr||!arr.length)return'';const w=120,h=26,max=Math.max(...arr),min=Math.min(...arr),rng=(max-min)||1;
+  const pts=arr.map((v,i)=>`${(i/(arr.length-1))*w},${h-2-((v-min)/rng)*(h-6)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="var(--asml-500)" stroke-width="2"/>${arr.map((v,i)=>`<circle cx="${(i/(arr.length-1))*w}" cy="${h-2-((v-min)/rng)*(h-6)}" r="2" fill="var(--asml)"/>`).join('')}</svg>`;}
+function toggleScen(k){activeScen[k]=!activeScen[k];document.getElementById('scn-'+k).classList.toggle('on',activeScen[k]);recompute();}
+function currentTwin(){return TWIN[document.getElementById('twinSel').value];}
+function recompute(){const d=currentTwin();let impact=0;const active=[];
+  for(const k in activeScen){if(activeScen[k]){impact+=(d.exp[k]||0)*32;active.push(k);}}
+  impact=Math.min(95,Math.round(impact));const resil=Math.max(5,100-impact);
+  document.getElementById('impactPct').textContent=impact+'%';document.getElementById('impactBar').style.width=impact+'%';drawRing(resil);
+  document.querySelectorAll('#twinBody .depnode[data-tags]').forEach(el=>{const tags=(el.getAttribute('data-tags')||'').split(',').filter(Boolean);el.classList.toggle('aff',tags.some(t=>active.includes(t)));});
+  const note=document.getElementById('scenNote');
+  if(!active.length)note.textContent='No scenario active — baseline resilience shown.';
+  else note.innerHTML='Active: '+active.map(k=>SCEN[k].label).join(' · ')+`. Modelled resilience <b>${resil}</b>/100. Red-outlined upstream nodes are the impaired dependencies.`;}
+function drawRing(v){const svg=document.getElementById('ring');if(!svg)return;const col=v>=70?'#37e0b0':v>=45?'#ffd24d':'#ff8a95';const R=48,C=2*Math.PI*R,off=C*(1-v/100);
+  svg.innerHTML=`<circle cx="60" cy="60" r="${R}" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="12"/><circle cx="60" cy="60" r="${R}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}" transform="rotate(-90 60 60)" style="transition:stroke-dashoffset .4s"/><text x="60" y="66" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">${v}</text>`;}
+function drawHeat(risks){const svg=document.getElementById('heat');if(!svg)return;const ox=40,oy=10,cw=52,ch=42;let h='';
+  for(let l=1;l<=5;l++)for(let s=1;s<=5;s++){const x=ox+(s-1)*cw,y=oy+(5-l)*ch;const score=s*l;const fill=score>=15?'#fbe3e6':score>=8?'#fdf1dc':'#eef7f1';h+=`<rect class="cell" x="${x}" y="${y}" width="${cw}" height="${ch}" style="fill:${fill}"/>`;}
+  for(let s=1;s<=5;s++)h+=`<text class="axl" x="${ox+(s-1)*cw+cw/2}" y="${oy+5*ch+14}" text-anchor="middle">${s}</text>`;
+  for(let l=1;l<=5;l++)h+=`<text class="axl" x="${ox-8}" y="${oy+(5-l)*ch+ch/2+3}" text-anchor="end">${l}</text>`;
+  h+=`<text class="axl" x="${ox+2.5*cw}" y="${oy+5*ch+28}" text-anchor="middle" font-weight="700">Severity →</text>`;
+  h+=`<text class="axl" transform="translate(12,${oy+2.5*ch}) rotate(-90)" text-anchor="middle" font-weight="700">Likelihood →</text>`;
+  const seen={};risks.forEach(r=>{const key=r.s+'-'+r.l;const k=seen[key]=(seen[key]||0)+1;const jx=(k-1)%3*10-8,jy=Math.floor((k-1)/3)*10-4;const cx=ox+(r.s-1)*cw+cw/2+jx,cy=oy+(5-r.l)*ch+ch/2+jy;h+=`<circle class="bub" cx="${cx}" cy="${cy}" r="9"><title>${r.r} — sev ${r.s} × lik ${r.l}</title></circle>`;});
+  svg.innerHTML=h;}
+
+/* risk pools */
+const POOLS=[
+ {name:"Taiwan foundry + CoWoS packaging",note:"~90% AI-grade capacity · low likelihood, extreme magnitude",v:100,cls:"crit",ev:"Exposure 95"},
+ {name:"HBM allocation (3 suppliers >95%)",note:"SK Hynix ~62% · demand-locked to 2027",v:82,cls:"crit",ev:"Exposure 82"},
+ {name:"EUV / ASML single-source",note:"Netherlands · export-control variable",v:70,cls:"warn",ev:"Exposure 70"},
+ {name:"Specialty gases + ABF substrate",note:"Japan + Middle East · higher likelihood",v:58,cls:"warn",ev:"Exposure 58"},
+ {name:"US–China export controls",note:"regulatory · live and shifting",v:64,cls:"warn",ev:"Exposure 64"}
+];
+function drawPools(){document.getElementById('poolsWrap').innerHTML=POOLS.map(p=>
+ `<div class="pool"><div class="name">${p.name}<small>${p.note}</small></div><div class="pbar ${p.cls}"><div class="fill" data-w="${p.v}"></div></div><div class="ev">${p.ev}</div></div>`).join('');}
+
+/* =========================================================================
+   ANIMATIONS — scroll reveal, count-up, bar fills
+   ========================================================================= */
+function initAnims(){
+  const rv=document.querySelectorAll('.rv');
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+  rv.forEach(el=>io.observe(el));
+  function animateCount(el){const target=parseFloat(el.dataset.c),dec=parseInt(el.dataset.dec||"0"),pre=el.dataset.pre||"",suf=el.dataset.suf||"";const dur=1300,t0=performance.now();
+    (function tick(now){let p=Math.min((now-t0)/dur,1);p=1-Math.pow(1-p,3);let val=target*p;let disp=dec>0?val.toFixed(dec):Math.round(val).toLocaleString();el.textContent=pre+disp+suf;if(p<1)requestAnimationFrame(tick);})(t0);}
+  const cio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const n=e.target;if(n.dataset.c)animateCount(n);cio.unobserve(n);}}),{threshold:.6});
+  document.querySelectorAll('.num[data-c]').forEach(n=>cio.observe(n));
+  const bio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.querySelectorAll('.fill').forEach(f=>f.style.width=f.dataset.w+'%');bio.unobserve(e.target);}}),{threshold:.3});
+  document.querySelectorAll('.pools').forEach(p=>bio.observe(p));
+}
+
+/* init */
+function init(){
+  drawSpine();drawSegpick();buildGraph(Object.keys(GRAPHS)[0]);drawSankey();
+  const sel=document.getElementById('twinSel');TWIN_ORDER.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+  loadTwin("NVIDIA");drawPools();initAnims();
+  const prov='Provenance: TSMC, NVIDIA and Intel financials are grounded to their FY2024/FY2025 filings &amp; press releases; supply-chain concentration (HBM ~62% SK Hynix, CoWoS ~90% Taiwan, three firms &gt;95% of HBM, ~75% hyperscaler capex to AI) follows the HBM-shortage research. Other twins carry <span class="pill s">seed</span> estimates. Flow magnitudes, risk-pool scores and scenario weights are directional models for decision framing — replace via a live filings extractor for board-grade figures.';
+  document.getElementById('prov').innerHTML=prov;document.getElementById('footnote').innerHTML='Grounding: TSMC / NVIDIA / Intel FY2024–FY2025 disclosures; HBM Chip Shortage research (concentration, capex, geopolitics). Seed twins are public-domain estimates flagged for replacement. All exposure, EV-style and resilience figures are illustrative for prioritisation, not a forecast or valuation opinion. Prepared September 2026.';
+}
+init();
+</script>
+</body>
+</html>

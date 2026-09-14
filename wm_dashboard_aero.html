@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Global Wealth Management — Market Prioritisation</title>
+<style>
+  /* ===== Apple / Google palette + Windows 7 Aero glass ===== */
+  :root{
+    --g-blue:#4285F4; --g-red:#EA4335; --g-yellow:#FBBC05; --g-green:#34A853;
+    --apple-ink:#1D1D1F; --apple-grey:#6E6E73; --apple-line:rgba(0,0,0,.08);
+    --ink:#1D1D1F; --muted:#5F6368;
+    /* aero glass tokens */
+    --glass:rgba(255,255,255,.55);
+    --glass-strong:rgba(255,255,255,.72);
+    --glass-border:rgba(255,255,255,.65);
+    --glass-hi:rgba(255,255,255,.9);       /* glossy top highlight */
+    --aero-shadow:0 8px 32px rgba(31,45,90,.18),0 2px 8px rgba(31,45,90,.10);
+    --aero-inset:inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(255,255,255,.25);
+    --radius:16px;
+    --good:var(--g-green); --amber:var(--g-yellow); --risk:var(--g-red); --blue:var(--g-blue);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;color:var(--ink);font-size:14px;line-height:1.45;
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    /* Aurora background bleeding through glass — Google 4-colour */
+    background:
+      radial-gradient(1100px 620px at 8% -8%, rgba(66,133,244,.55), transparent 60%),
+      radial-gradient(980px 560px at 100% 0%, rgba(234,67,53,.40), transparent 58%),
+      radial-gradient(1000px 700px at 20% 108%, rgba(52,168,83,.45), transparent 60%),
+      radial-gradient(900px 600px at 92% 100%, rgba(251,188,5,.42), transparent 58%),
+      linear-gradient(160deg,#eef3fb 0%,#f6f8fc 40%,#eef2f8 100%);
+    background-attachment:fixed;
+  }
+  h1,h2,h3{font-weight:600;letter-spacing:-.02em;margin:0}
+  a{color:var(--g-blue)}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+
+  /* ===== Aero glass primitive ===== */
+  .glass{
+    background:linear-gradient(180deg,var(--glass-hi) 0%,var(--glass) 14%,var(--glass) 100%);
+    border:1px solid var(--glass-border);
+    border-radius:var(--radius);
+    box-shadow:var(--aero-shadow),var(--aero-inset);
+    -webkit-backdrop-filter:blur(22px) saturate(180%);
+    backdrop-filter:blur(22px) saturate(180%);
+    position:relative;overflow:hidden;
+  }
+  /* glossy reflective sweep across top half — the classic Aero shine */
+  .glass::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:48%;
+    background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0));
+    pointer-events:none;border-radius:var(--radius) var(--radius) 40% 40%/var(--radius) var(--radius) 100% 100%;
+  }
+
+  /* ===== top bar ===== */
+  header{position:sticky;top:0;z-index:40}
+  .topbar-glass{
+    margin:0;border-radius:0 0 var(--radius) var(--radius);
+    background:linear-gradient(180deg,rgba(255,255,255,.82),rgba(255,255,255,.55));
+    border-bottom:1px solid var(--glass-border);
+    box-shadow:0 6px 24px rgba(31,45,90,.14);
+    -webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
+  }
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;max-width:1280px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:13px}
+  .brand .mark{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:17px;color:#fff;position:relative;
+    background:conic-gradient(from 200deg,var(--g-blue),var(--g-green),var(--g-yellow),var(--g-red),var(--g-blue));
+    box-shadow:0 4px 14px rgba(66,133,244,.4),inset 0 1px 0 rgba(255,255,255,.6)}
+  .brand .mark::after{content:"";position:absolute;inset:2px;border-radius:9px;background:rgba(255,255,255,.14)}
+  .brand .mark span{position:relative;z-index:1;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .brand h1{font-size:16px;color:var(--apple-ink)}
+  .brand .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+  .disclaimer{font-size:11px;color:#B23A2E;background:rgba(234,67,53,.12);border:1px solid rgba(234,67,53,.28);
+    padding:6px 12px;border-radius:20px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+
+  nav.sections{display:flex;justify-content:center;padding:8px 24px 0}
+  nav.sections .inner{display:flex;gap:6px;max-width:1280px;width:100%;overflow-x:auto;padding-bottom:2px}
+  nav.sections a{color:var(--muted);text-decoration:none;font-size:12.5px;padding:7px 15px;border-radius:20px;white-space:nowrap;
+    border:1px solid transparent;transition:.15s}
+  nav.sections a:hover{color:var(--apple-ink);background:rgba(255,255,255,.6);border-color:var(--glass-border);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+
+  section{padding:24px 0}
+  .sec-head{margin:0 4px 14px}
+  .sec-head h2{font-size:19px;color:var(--apple-ink)}
+  .sec-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+
+  /* ===== KPI ===== */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .kpi{padding:18px 20px}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+  .kpi .val{font-size:30px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kpi .foot{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .kpi:nth-child(1) .val{color:var(--g-blue)} .kpi:nth-child(2) .val{color:var(--g-red)}
+  .kpi:nth-child(3) .val{color:var(--g-green)} .kpi:nth-child(4) .val{color:#C99400}
+  .kpi .accent{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .kpi:nth-child(1) .accent{background:var(--g-blue)} .kpi:nth-child(2) .accent{background:var(--g-red)}
+  .kpi:nth-child(3) .accent{background:var(--g-green)} .kpi:nth-child(4) .accent{background:var(--g-yellow)}
+
+  .grid2{display:grid;grid-template-columns:1.35fr .95fr;gap:18px;align-items:start}
+  .card .hd{padding:15px 18px;border-bottom:1px solid var(--apple-line);display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1}
+  .card .hd h3{font-size:15px;color:var(--apple-ink)}
+  .card .hd .note{font-size:11.5px;color:var(--muted)}
+  .card .bd{padding:16px 18px;position:relative;z-index:1}
+
+  /* ===== controls ===== */
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--glass-border);background:rgba(255,255,255,.55);border-radius:20px;padding:6px 15px;font-size:12px;cursor:pointer;color:var(--ink);transition:.14s;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+  .chip:hover{background:rgba(255,255,255,.85)}
+  .chip.active{background:linear-gradient(180deg,#5a95f7,var(--g-blue));color:#fff;border-color:rgba(66,133,244,.6);
+    box-shadow:0 3px 10px rgba(66,133,244,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+  .presets{display:flex;gap:8px;flex-wrap:wrap}
+  .preset{border:1px solid var(--glass-border);color:var(--ink);border-radius:11px;padding:7px 13px;font-size:12px;cursor:pointer;font-weight:500;
+    background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.6));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 3px rgba(31,45,90,.12);transition:.14s}
+  .preset:hover{transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 4px 12px rgba(31,45,90,.18)}
+  .preset[data-preset="balanced"]{border-color:rgba(66,133,244,.5);color:var(--g-blue)}
+  .preset[data-preset="grow"]{border-color:rgba(52,168,83,.5);color:var(--g-green)}
+  .preset[data-preset="protect"]{border-color:rgba(234,67,53,.5);color:var(--g-red)}
+  .preset.ghost{color:var(--muted)}
+
+  .slider-row{display:flex;align-items:center;gap:12px;margin:12px 0}
+  .slider-row label{width:130px;font-size:12.5px;color:var(--ink)}
+  .slider-row .pct{width:46px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:var(--apple-ink)}
+  .sumcheck{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .sumcheck.bad{color:var(--g-red)}
+  details.adv{margin-top:10px;border-top:1px solid var(--apple-line);padding-top:10px}
+  details.adv summary{cursor:pointer;font-size:12.5px;color:var(--g-blue);font-weight:600;list-style:none}
+  details.adv summary::-webkit-details-marker{display:none}
+  .metric-mini{display:flex;align-items:center;gap:8px;margin:7px 0}
+  .metric-mini label{width:150px;font-size:11.5px;color:var(--muted)}
+  .metric-mini .pct{width:38px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums}
+  .advcol{margin:10px 0}
+  .advcol h4{font-size:12px;color:var(--apple-ink);margin:0 0 4px}
+
+  /* aero range sliders */
+  input[type=range]{-webkit-appearance:none;height:8px;border-radius:20px;outline:none;
+    background:linear-gradient(180deg,rgba(0,0,0,.10),rgba(0,0,0,.04));box-shadow:inset 0 1px 2px rgba(0,0,0,.2)}
+  .slider-row input[type=range]{flex:1}
+  .metric-mini input[type=range]{flex:1;height:6px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;cursor:pointer;
+    background:radial-gradient(circle at 35% 30%,#fff,#dfe6f2 60%,#b9c6de);
+    border:1px solid rgba(66,133,244,.6);box-shadow:0 2px 6px rgba(31,45,90,.35),inset 0 1px 0 #fff}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;cursor:pointer;
+    background:radial-gradient(circle at 35% 30%,#fff,#dfe6f2 60%,#b9c6de);border:1px solid rgba(66,133,244,.6)}
+
+  /* ===== table ===== */
+  .tbl-wrap{overflow-x:auto;border-radius:12px}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+  th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--apple-line);white-space:nowrap}
+  th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+  th.ctr,td.ctr{text-align:center}
+  thead th{color:#fff;font-weight:600;font-size:11.5px;cursor:pointer;position:sticky;top:0;user-select:none;
+    background:linear-gradient(180deg,rgba(66,133,244,.96),rgba(52,120,230,.96));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35);border-bottom:none}
+  thead th:first-child{border-radius:10px 0 0 0} thead th:last-child{border-radius:0 10px 0 0}
+  tbody tr{cursor:pointer;transition:.1s}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.28)}
+  tbody tr:hover{background:rgba(66,133,244,.12)}
+  td.market{font-weight:600;color:var(--apple-ink)}
+  .bar{position:relative;height:17px;border-radius:20px;background:rgba(0,0,0,.06);min-width:72px;overflow:hidden;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.12)}
+  .bar>span{position:absolute;left:0;top:0;bottom:0;border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+  .bar>b{position:absolute;right:6px;top:0;line-height:17px;font-size:10.5px;font-weight:700;color:#0b1f3a}
+  .heat{display:inline-block;min-width:44px;padding:4px 8px;border-radius:20px;font-weight:700;color:#fff;text-align:center;font-size:11.5px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 3px rgba(0,0,0,.15)}
+  .badge{display:inline-block;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)}
+  .b-invest{background:rgba(52,168,83,.16);color:#1E7E34;border:1px solid rgba(52,168,83,.45)}
+  .b-select{background:rgba(251,188,5,.18);color:#9A7400;border:1px solid rgba(251,188,5,.5)}
+  .b-watch{background:rgba(234,67,53,.14);color:#B23A2E;border:1px solid rgba(234,67,53,.4)}
+  .conf{font-weight:700;font-size:11px}
+  .c-src{color:var(--g-green)} .c-mix{color:#C99400} .c-est{color:var(--g-red)}
+
+  /* ===== chart ===== */
+  .chart-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:10px;align-items:center}
+  .chart-legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+  svg text{font-family:inherit}
+
+  /* ===== drawer ===== */
+  .scrim{position:fixed;inset:0;background:rgba(20,28,48,.34);opacity:0;pointer-events:none;transition:.22s;z-index:60;
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:452px;max-width:92vw;z-index:70;
+    transform:translateX(100%);transition:.26s cubic-bezier(.3,.7,.3,1);overflow-y:auto;
+    background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(255,255,255,.7));
+    border-left:1px solid var(--glass-border);
+    box-shadow:-16px 0 44px rgba(31,45,90,.28);
+    -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
+  .drawer.open{transform:translateX(0)}
+  .drawer .dh{padding:20px 22px;position:sticky;top:0;color:#fff;
+    background:linear-gradient(135deg,var(--g-blue),#5a52d5 55%,var(--g-red));
+    box-shadow:inset 0 -1px 0 rgba(255,255,255,.2),0 2px 12px rgba(31,45,90,.2)}
+  .drawer .dh h3{font-size:19px}
+  .drawer .dh .r{font-size:12px;color:rgba(255,255,255,.85);margin-top:4px}
+  .drawer .db{padding:20px 22px}
+  .drawer .close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);
+    color:#fff;width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+  .lensrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin:16px 0}
+  .lensbox{border:1px solid var(--glass-border);border-radius:12px;padding:11px;text-align:center;
+    background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.55));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+  .lensbox .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .lensbox .v{font-size:22px;font-weight:600;margin-top:3px}
+  .read{background:rgba(66,133,244,.10);border-left:3px solid var(--g-blue);padding:11px 13px;border-radius:0 10px 10px 0;font-size:12.5px;margin:14px 0;color:#2b3444}
+  .kv{width:100%;font-size:12px;border-collapse:collapse;margin-top:6px}
+  .kv td{padding:6px 8px;border-bottom:1px solid var(--apple-line)}
+  .kv td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+
+  /* ===== methodology ===== */
+  .lens-table td:first-child{font-weight:600;color:var(--apple-ink)}
+  .lens-table thead th{cursor:default}
+  .foot-note{font-size:11.5px;color:var(--muted);margin-top:10px;padding:0 4px}
+  footer{padding:26px 0 44px;color:var(--muted);font-size:11.5px;text-align:center}
+
+  @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar-glass">
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark"><span>W</span></div>
+        <div>
+          <h1>Global Wealth Management — Market Prioritisation</h1>
+          <div class="sub">Attractiveness × Growth × Execution risk · investment lens · illustrative build for a global wealth manager</div>
+        </div>
+      </div>
+      <div class="disclaimer">Illustrative data — validate before client use</div>
+    </div>
+    <nav class="sections"><div class="inner">
+      <a href="#kpi">Overview</a>
+      <a href="#table">Priority table</a>
+      <a href="#quad">Attractiveness × Growth</a>
+      <a href="#method">Methodology &amp; sources</a>
+    </div></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section id="kpi">
+    <div class="kpis" id="kpiStrip"></div>
+  </section>
+
+  <section id="table">
+    <div class="grid2">
+      <div class="card glass">
+        <div class="hd">
+          <h3>Market priority league table</h3>
+          <span class="note">click a row for the market deep-dive</span>
+        </div>
+        <div class="bd" style="padding-top:12px">
+          <div class="chips" id="regionChips" style="margin-bottom:12px"></div>
+          <div class="tbl-wrap"><table id="mainTable">
+            <thead><tr id="theadRow"></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="card glass">
+        <div class="hd"><h3>Priority blend weights</h3><span class="note">re-scores live</span></div>
+        <div class="bd">
+          <div class="presets" style="margin-bottom:14px">
+            <button class="preset" data-preset="balanced">Balanced</button>
+            <button class="preset" data-preset="grow">Grow the pool</button>
+            <button class="preset" data-preset="protect">Protect earnings</button>
+            <button class="preset ghost" id="resetBtn">Reset</button>
+          </div>
+          <div class="slider-row"><label>Attractiveness</label><input type="range" id="wA" min="0" max="100" value="40"><span class="pct" id="wAv">40%</span></div>
+          <div class="slider-row"><label>Growth</label><input type="range" id="wG" min="0" max="100" value="35"><span class="pct" id="wGv">35%</span></div>
+          <div class="slider-row"><label>Risk (inverted)</label><input type="range" id="wR" min="0" max="100" value="25"><span class="pct" id="wRv">25%</span></div>
+          <div class="sumcheck" id="sumCheck"></div>
+
+          <details class="adv">
+            <summary>Advanced — per-metric weights</summary>
+            <div class="advcol" id="advAttr"></div>
+            <div class="advcol" id="advGrow"></div>
+            <div class="advcol" id="advRisk"></div>
+          </details>
+          <div style="margin-top:14px;display:flex;gap:9px">
+            <button class="preset" id="csvBtn">Download CSV</button>
+            <button class="preset ghost" onclick="window.print()">Print / PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="quad">
+    <div class="sec-head"><h2>Attractiveness vs growth</h2>
+      <p>Bubble size = investable wealth pool · colour = priority tier · dashed lines = medians</p></div>
+    <div class="card glass"><div class="bd">
+      <div id="bubbleWrap"></div>
+      <div class="chart-legend">
+        <span><i class="dot" style="background:var(--g-green)"></i>Priority / Invest</span>
+        <span><i class="dot" style="background:var(--g-yellow)"></i>Selective / Grow</span>
+        <span><i class="dot" style="background:#9AA3AF"></i>Watch / Defend</span>
+        <span style="margin-left:auto">Quadrants: top-right <b>&nbsp;Invest &amp; scale</b> · top-left <b>&nbsp;Nurture</b> · bottom-right <b>&nbsp;Harvest</b> · bottom-left <b>&nbsp;Watch</b></span>
+      </div>
+    </div></div>
+  </section>
+
+  <section id="method">
+    <div class="sec-head"><h2>Methodology &amp; source register</h2>
+      <p>Each metric is min-max normalised 0–100 across the market set, then weighted. Priority = wA·Attractiveness + wG·Growth + wR·(100 − Execution risk).</p></div>
+    <div class="grid2">
+      <div class="card glass"><div class="hd"><h3>Investment-lens mapping</h3></div><div class="bd" style="padding:0">
+        <table class="lens-table"><thead><tr><th>Element</th><th>Lens</th><th>Financial meaning for the bank</th></tr></thead>
+        <tbody id="lensBody"></tbody></table>
+      </div></div>
+      <div class="card glass"><div class="hd"><h3>Source &amp; confidence</h3></div><div class="bd" style="padding:0">
+        <table class="lens-table"><thead><tr><th>Metric</th><th>Primary source</th><th class="ctr">Confidence</th></tr></thead>
+        <tbody id="srcBody"></tbody></table>
+      </div></div>
+    </div>
+    <p class="foot-note">Sources: UBS Global Wealth Report 2026 (30 Jun 2026); Capgemini World Wealth Report 2026; PwC 2025 Global Asset &amp; Wealth Management Report; UBS wealth-Gini 2025. Country-level pools, FX, macro-stability, regulatory and geopolitical scores are analyst estimates — replace with UBS GWR Table 1 and internal AUM/revenue data before client use.</p>
+  </section>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <button class="close" onclick="closeDrawer()">×</button>
+    <h3 id="dName">—</h3>
+    <div class="r" id="dRegion">—</div>
+  </div>
+  <div class="db" id="dBody"></div>
+</aside>
+
+<footer>Illustrative decision-support tool · not investment advice · figures require validation against primary sources.</footer>
+
+<script>
+// ---------------- DATA ----------------
+const MARKETS = [
+ {market:"United States",region:"Americas",iso3:"USA",millionairesK:23600,investablePoolBn:30000,avgWealthUsd:696277,wealthGrowth25:8.5,hnwiPopGrowth25:9.2,projCagr5y:6.5,netNewMillK:440,gini:77,fxVol:1,macroRisk:2,regComplexity:4,geoRisk:2,segment:"UHNW + Mass Affluent",confidence:"Mixed",source:"UBS GWR26; Capgemini WWR26"},
+ {market:"Mainland China",region:"APAC",iso3:"CHN",millionairesK:6500,investablePoolBn:8500,avgWealthUsd:90000,wealthGrowth25:5.9,hnwiPopGrowth25:2.5,projCagr5y:6.0,netNewMillK:154,gini:70,fxVol:3,macroRisk:3,regComplexity:5,geoRisk:4,segment:"Emerging HNW",confidence:"Estimate",source:"UBS GWR26; Capgemini WWR26; est."},
+ {market:"Japan",region:"APAC",iso3:"JPN",millionairesK:3800,investablePoolBn:5000,avgWealthUsd:250000,wealthGrowth25:5.9,hnwiPopGrowth25:12.0,projCagr5y:4.0,netNewMillK:436,gini:64,fxVol:3,macroRisk:2,regComplexity:3,geoRisk:2,segment:"Aging HNW / succession",confidence:"Mixed",source:"UBS GWR26; Capgemini WWR26 (+436k)"},
+ {market:"Germany",region:"EMEA",iso3:"DEU",millionairesK:3300,investablePoolBn:4500,avgWealthUsd:280000,wealthGrowth25:17.5,hnwiPopGrowth25:11.1,projCagr5y:5.0,netNewMillK:250,gini:67,fxVol:2,macroRisk:2,regComplexity:4,geoRisk:2,segment:"Entrepreneurial HNW",confidence:"Mixed",source:"UBS GWR26; Capgemini WWR26 (+11.1%)"},
+ {market:"United Kingdom",region:"EMEA",iso3:"GBR",millionairesK:3000,investablePoolBn:4000,avgWealthUsd:300000,wealthGrowth25:17.5,hnwiPopGrowth25:2.6,projCagr5y:4.5,netNewMillK:80,gini:60,fxVol:3,macroRisk:2,regComplexity:4,geoRisk:2,segment:"UHNW + non-doms",confidence:"Estimate",source:"UBS GWR26; Capgemini WWR26 (+2.6%)"},
+ {market:"France",region:"EMEA",iso3:"FRA",millionairesK:2900,investablePoolBn:3500,avgWealthUsd:280000,wealthGrowth25:17.5,hnwiPopGrowth25:2.7,projCagr5y:4.0,netNewMillK:78,gini:62,fxVol:2,macroRisk:2,regComplexity:4,geoRisk:2,segment:"HNW + inheritance",confidence:"Estimate",source:"UBS GWR26; Capgemini WWR26 (+2.7%)"},
+ {market:"Switzerland",region:"EMEA",iso3:"CHE",millionairesK:1100,investablePoolBn:3000,avgWealthUsd:910382,wealthGrowth25:17.5,hnwiPopGrowth25:5.0,projCagr5y:4.5,netNewMillK:40,gini:68,fxVol:2,macroRisk:1,regComplexity:3,geoRisk:1,segment:"UHNW booking centre",confidence:"Mixed",source:"UBS GWR26 (top avg $910,382)"},
+ {market:"Luxembourg",region:"EMEA",iso3:"LUX",millionairesK:80,investablePoolBn:400,avgWealthUsd:654732,wealthGrowth25:17.5,hnwiPopGrowth25:13.5,projCagr5y:5.5,netNewMillK:8,gini:60,fxVol:2,macroRisk:1,regComplexity:3,geoRisk:1,segment:"Cross-border booking",confidence:"Mixed",source:"UBS GWR26 (3rd avg); Capgemini (+13.5%)"},
+ {market:"Canada",region:"Americas",iso3:"CAN",millionairesK:2300,investablePoolBn:3000,avgWealthUsd:399886,wealthGrowth25:8.5,hnwiPopGrowth25:6.7,projCagr5y:5.0,netNewMillK:30,gini:60,fxVol:3,macroRisk:2,regComplexity:3,geoRisk:1,segment:"Mass Affluent + HNW",confidence:"Mixed",source:"UBS GWR26 ($399,886); Capgemini (+6.7%)"},
+ {market:"Australia",region:"APAC",iso3:"AUS",millionairesK:2000,investablePoolBn:2500,avgWealthUsd:590000,wealthGrowth25:5.9,hnwiPopGrowth25:8.0,projCagr5y:5.0,netNewMillK:18,gini:65,fxVol:4,macroRisk:2,regComplexity:3,geoRisk:2,segment:"HNW + SMSF",confidence:"Estimate",source:"UBS GWR26 (region avg ~$590k)"},
+ {market:"Singapore",region:"APAC",iso3:"SGP",millionairesK:350,investablePoolBn:1200,avgWealthUsd:400000,wealthGrowth25:5.9,hnwiPopGrowth25:8.0,projCagr5y:7.0,netNewMillK:20,gini:69,fxVol:2,macroRisk:1,regComplexity:3,geoRisk:2,segment:"UHNW booking hub",confidence:"Estimate",source:"UBS wealth-Gini25 (69); est."},
+ {market:"Hong Kong SAR",region:"APAC",iso3:"HKG",millionairesK:630,investablePoolBn:1500,avgWealthUsd:600000,wealthGrowth25:5.9,hnwiPopGrowth25:6.0,projCagr5y:5.5,netNewMillK:15,gini:68,fxVol:3,macroRisk:3,regComplexity:3,geoRisk:4,segment:"UHNW gateway to China",confidence:"Estimate",source:"UBS GWR26 (high avg); est."},
+ {market:"India",region:"APAC",iso3:"IND",millionairesK:1100,investablePoolBn:1500,avgWealthUsd:30000,wealthGrowth25:5.9,hnwiPopGrowth25:8.0,projCagr5y:9.0,netNewMillK:30,gini:74,fxVol:4,macroRisk:3,regComplexity:5,geoRisk:3,segment:"Emerging entrepreneurial HNW",confidence:"Estimate",source:"UBS wealth-Gini25 (74); Capgemini (+11.3k)"},
+ {market:"United Arab Emirates",region:"EMEA",iso3:"ARE",millionairesK:200,investablePoolBn:900,avgWealthUsd:350000,wealthGrowth25:17.5,hnwiPopGrowth25:10.0,projCagr5y:8.0,netNewMillK:15,gini:82,fxVol:2,macroRisk:2,regComplexity:3,geoRisk:3,segment:"Global UHNW inflow hub",confidence:"Estimate",source:"UBS wealth-Gini25 (82, highest); est."},
+ {market:"Saudi Arabia",region:"EMEA",iso3:"SAU",millionairesK:350,investablePoolBn:800,avgWealthUsd:200000,wealthGrowth25:17.5,hnwiPopGrowth25:8.0,projCagr5y:7.0,netNewMillK:12,gini:78,fxVol:2,macroRisk:3,regComplexity:4,geoRisk:4,segment:"Emerging UHNW / sovereign",confidence:"Estimate",source:"UBS wealth-Gini25 (78); est."},
+ {market:"Brazil",region:"Americas",iso3:"BRA",millionairesK:400,investablePoolBn:600,avgWealthUsd:60000,wealthGrowth25:8.5,hnwiPopGrowth25:1.0,projCagr5y:5.0,netNewMillK:5,gini:81,fxVol:5,macroRisk:4,regComplexity:4,geoRisk:3,segment:"Concentrated UHNW",confidence:"Estimate",source:"UBS wealth-Gini25 (81); Capgemini WWR26"},
+ {market:"South Korea",region:"APAC",iso3:"KOR",millionairesK:1300,investablePoolBn:1600,avgWealthUsd:180000,wealthGrowth25:5.9,hnwiPopGrowth25:9.0,projCagr5y:6.0,netNewMillK:25,gini:55,fxVol:3,macroRisk:2,regComplexity:3,geoRisk:3,segment:"Fast-growth HNW",confidence:"Estimate",source:"UBS GWR26 (top 5yr real growth >50%)"},
+];
+
+const ATTR = [
+  {key:"investablePoolBn",label:"Wealth pool (size)",w:0.30},
+  {key:"millionairesK",label:"Millionaire pop (TAM)",w:0.25},
+  {key:"avgWealthUsd",label:"Avg wealth (ticket)",w:0.15},
+  {key:"wealthGrowth25",label:"Wealth growth (momentum)",w:0.20},
+  {key:"gini",label:"Concentration (reach)",w:0.10},
+];
+const GROW = [
+  {key:"wealthGrowth25",label:"Wealth growth 2025",w:0.30},
+  {key:"hnwiPopGrowth25",label:"HNWI pop growth",w:0.25},
+  {key:"projCagr5y",label:"5yr proj CAGR",w:0.30},
+  {key:"netNewMillK",label:"Net new millionaires",w:0.15},
+];
+const RISK = [
+  {key:"fxVol",label:"FX volatility",w:0.20},
+  {key:"macroRisk",label:"Macro-financial instability",w:0.25},
+  {key:"regComplexity",label:"Regulatory complexity",w:0.25},
+  {key:"gini",label:"Concentration risk (Gini)",w:0.10},
+  {key:"geoRisk",label:"Geopolitical risk",w:0.20},
+];
+const DEFAULT_BLEND={A:40,G:35,R:25};
+let blend={...DEFAULT_BLEND};
+let activeRegion="All";
+let sortKey="priority", sortDir=-1;
+
+// ---------------- SCORING ----------------
+const RANGES={};
+[...ATTR,...GROW,...RISK].forEach(m=>{if(!RANGES[m.key]){const v=MARKETS.map(x=>x[m.key]);RANGES[m.key]={min:Math.min(...v),max:Math.max(...v)};}});
+function normUp(v,key){const{min,max}=RANGES[key];return max===min?0:(v-min)/(max-min)*100;}
+function normBlend(){const s=blend.A+blend.G+blend.R||1;return{A:blend.A/s,G:blend.G/s,R:blend.R/s};}
+function score(m){
+  const a=ATTR.reduce((s,d)=>s+normUp(m[d.key],d.key)*d.w,0);
+  const g=GROW.reduce((s,d)=>s+normUp(m[d.key],d.key)*d.w,0);
+  const r=RISK.reduce((s,d)=>s+normUp(m[d.key],d.key)*d.w,0);
+  const nb=normBlend();
+  const p=nb.A*a+nb.G*g+nb.R*(100-r);
+  return {a,g,r,p};
+}
+function percentile(arr,q){const s=[...arr].sort((x,y)=>x-y);const pos=(s.length-1)*q;const b=Math.floor(pos);const rest=pos-b;return s[b]+(s[b+1]!==undefined?rest*(s[b+1]-s[b]):0);}
+function computeAll(){
+  const rows=MARKETS.map(m=>({...m,...score(m)}));
+  const ps=rows.map(r=>r.p);const p33=percentile(ps,0.33),p66=percentile(ps,0.66);
+  rows.forEach(r=>{r.tier=r.p>=p66?"invest":(r.p>=p33?"select":"watch");});
+  return rows;
+}
+
+// ---------------- RENDER ----------------
+const $=id=>document.getElementById(id);
+function fmt(n){return n>=1000?n.toLocaleString():n;}
+function heatColor(v){const t=v/100;const r=Math.round(52+t*(234-52)),g=Math.round(168+t*(67-168)),b=Math.round(83+t*(53-83));return `rgb(${r},${g},${b})`;}
+function tierBadge(t){return t==="invest"?'<span class="badge b-invest">Priority / Invest</span>':t==="select"?'<span class="badge b-select">Selective / Grow</span>':'<span class="badge b-watch">Watch / Defend</span>';}
+function tierText(t){return t==="invest"?"Priority / Invest":t==="select"?"Selective / Grow":"Watch / Defend";}
+function confSpan(c){const cls=c==="Sourced"?"c-src":c==="Mixed"?"c-mix":"c-est";return `<span class="conf ${cls}">${c}</span>`;}
+
+function renderKPIs(rows){
+  const pool=rows.reduce((s,r)=>s+r.investablePoolBn,0);
+  const mill=rows.reduce((s,r)=>s+r.millionairesK,0);
+  const wpool=pool||1;
+  const wg=rows.reduce((s,r)=>s+r.wealthGrowth25*r.investablePoolBn,0)/wpool;
+  const inv=rows.filter(r=>r.tier==="invest").length;
+  const K=[
+    {label:"Total investable pool",val:"$"+(pool/1000).toFixed(1)+"tn",foot:rows.length+" markets in view"},
+    {label:"Millionaires (TAM)",val:(mill/1000).toFixed(1)+"m",foot:"in view"},
+    {label:"Wealth growth 2025",val:wg.toFixed(1)+"%",foot:"pool-weighted, USD terms"},
+    {label:"Priority / Invest",val:inv,foot:"top tercile of priority"},
+  ];
+  $("kpiStrip").innerHTML=K.map(k=>`<div class="kpi glass"><span class="accent"></span><div class="label">${k.label}</div><div class="val">${k.val}</div><div class="foot">${k.foot}</div></div>`).join("");
+}
+
+const COLS=[
+  {key:"rank",label:"#",cls:"ctr"},
+  {key:"market",label:"Market",cls:""},
+  {key:"region",label:"Region",cls:"ctr"},
+  {key:"a",label:"Attractiveness",cls:"num"},
+  {key:"g",label:"Growth",cls:"num"},
+  {key:"r",label:"Exec risk",cls:"num"},
+  {key:"p",label:"Priority",cls:"num"},
+  {key:"tier",label:"Tier",cls:"ctr"},
+];
+function renderTableHead(){
+  $("theadRow").innerHTML=COLS.map(c=>`<th class="${c.cls}" data-k="${c.key}">${c.label}${sortKey===c.key?(sortDir<0?' ▾':' ▴'):''}</th>`).join("");
+  document.querySelectorAll("#theadRow th").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;if(k==="rank")return;
+    if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="market"||k==="region")?1:-1;}
+    render();
+  });
+}
+function renderTable(rows){
+  const view=activeRegion==="All"?rows:rows.filter(r=>r.region===activeRegion);
+  const byP=[...rows].sort((a,b)=>b.p-a.p);const rankMap={};byP.forEach((r,i)=>rankMap[r.market]=i+1);
+  view.sort((a,b)=>{
+    let x=a[sortKey],y=b[sortKey];
+    if(sortKey==="rank"){x=rankMap[a.market];y=rankMap[b.market];}
+    if(typeof x==="string")return x.localeCompare(y)*sortDir;
+    return (x-y)*sortDir;
+  });
+  $("tbody").innerHTML=view.map(r=>{
+    const barA=`<div class="bar"><span style="width:${Math.max(4,r.a).toFixed(0)}%;background:linear-gradient(180deg,#5fbf7a,var(--g-green))"></span><b>${r.a.toFixed(0)}</b></div>`;
+    const barG=`<div class="bar"><span style="width:${Math.max(4,r.g).toFixed(0)}%;background:linear-gradient(180deg,#6aa8f9,var(--g-blue))"></span><b>${r.g.toFixed(0)}</b></div>`;
+    const barP=`<div class="bar"><span style="width:${Math.max(4,r.p).toFixed(0)}%;background:linear-gradient(180deg,#8a83e0,#5a52d5)"></span><b>${r.p.toFixed(1)}</b></div>`;
+    const heat=`<span class="heat" style="background:${heatColor(r.r)}">${r.r.toFixed(0)}</span>`;
+    return `<tr onclick="openDrawer('${r.market.replace(/'/g,"\\'")}')" title="${r.source} · confidence: ${r.confidence}">
+      <td class="ctr">${rankMap[r.market]}</td>
+      <td class="market">${r.market}</td>
+      <td class="ctr">${r.region}</td>
+      <td class="num">${barA}</td>
+      <td class="num">${barG}</td>
+      <td class="ctr">${heat}</td>
+      <td class="num">${barP}</td>
+      <td class="ctr">${tierBadge(r.tier)}</td>
+    </tr>`;
+  }).join("");
+}
+function renderRegionChips(){
+  const regs=["All","Americas","EMEA","APAC"];
+  $("regionChips").innerHTML=regs.map(r=>`<div class="chip ${activeRegion===r?'active':''}" data-r="${r}">${r}</div>`).join("");
+  document.querySelectorAll("#regionChips .chip").forEach(c=>c.onclick=()=>{activeRegion=c.dataset.r;render();});
+}
+
+function renderBubble(rows){
+  const W=1000,H=440,pad={l:56,r:24,t:20,b:46};
+  const iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  const xs=rows.map(r=>r.a),ys=rows.map(r=>r.g);
+  const xMin=Math.min(...xs)-4,xMax=Math.max(...xs)+4,yMin=Math.min(...ys)-4,yMax=Math.max(...ys)+4;
+  const xmed=percentile(xs,0.5),ymed=percentile(ys,0.5);
+  const sx=v=>pad.l+(v-xMin)/(xMax-xMin)*iw;
+  const sy=v=>pad.t+ih-(v-yMin)/(yMax-yMin)*ih;
+  const poolMax=Math.max(...rows.map(r=>r.investablePoolBn));
+  const rad=v=>8+Math.sqrt(v/poolMax)*34;
+  const tcol=t=>t==="invest"?"#34A853":t==="select"?"#FBBC05":"#9AA3AF";
+  let g="";
+  for(let i=0;i<=4;i++){const gx=pad.l+iw*i/4,gy=pad.t+ih*i/4;
+    g+=`<line x1="${pad.l}" y1="${gy}" x2="${W-pad.r}" y2="${gy}" stroke="rgba(0,0,0,.05)"/>`;
+    g+=`<line x1="${gx}" y1="${pad.t}" x2="${gx}" y2="${pad.t+ih}" stroke="rgba(0,0,0,.05)"/>`;}
+  g+=`<line x1="${sx(xmed)}" y1="${pad.t}" x2="${sx(xmed)}" y2="${pad.t+ih}" stroke="rgba(66,133,244,.5)" stroke-dasharray="5 4"/>`;
+  g+=`<line x1="${pad.l}" y1="${sy(ymed)}" x2="${W-pad.r}" y2="${sy(ymed)}" stroke="rgba(66,133,244,.5)" stroke-dasharray="5 4"/>`;
+  g+=`<text x="${W-pad.r-6}" y="${pad.t+16}" text-anchor="end" font-size="12" fill="#9AA3AF" font-weight="600">Invest &amp; scale</text>`;
+  g+=`<text x="${pad.l+6}" y="${pad.t+16}" font-size="12" fill="#9AA3AF" font-weight="600">Nurture</text>`;
+  g+=`<text x="${W-pad.r-6}" y="${pad.t+ih-6}" text-anchor="end" font-size="12" fill="#9AA3AF" font-weight="600">Harvest</text>`;
+  g+=`<text x="${pad.l+6}" y="${pad.t+ih-6}" font-size="12" fill="#9AA3AF" font-weight="600">Watch</text>`;
+  rows.forEach(r=>{
+    const cx=sx(r.a),cy=sy(r.g),rr=rad(r.investablePoolBn);
+    g+=`<circle cx="${cx}" cy="${cy}" r="${rr}" fill="${tcol(r.tier)}" fill-opacity="0.5" stroke="${tcol(r.tier)}" stroke-width="1.6" style="cursor:pointer" onclick="openDrawer('${r.market.replace(/'/g,"\\'")}')"><title>${r.market} — Attr ${r.a.toFixed(0)}, Growth ${r.g.toFixed(0)}, pool $${(r.investablePoolBn/1000).toFixed(1)}tn</title></circle>`;
+    const short=r.market.length>14?r.market.split(" ")[0]:r.market;
+    g+=`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="10.5" fill="#1D1D1F" font-weight="600" pointer-events="none">${short}</text>`;
+  });
+  g+=`<text x="${pad.l+iw/2}" y="${H-10}" text-anchor="middle" font-size="12.5" fill="#5F6368" font-weight="600">Attractiveness →</text>`;
+  g+=`<text x="16" y="${pad.t+ih/2}" text-anchor="middle" font-size="12.5" fill="#5F6368" font-weight="600" transform="rotate(-90 16 ${pad.t+ih/2})">Growth →</text>`;
+  $("bubbleWrap").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:460px">${g}</svg>`;
+}
+
+function radar(m){
+  const dims=[
+    {l:"Pool",v:normUp(m.investablePoolBn,"investablePoolBn")},
+    {l:"TAM",v:normUp(m.millionairesK,"millionairesK")},
+    {l:"Ticket",v:normUp(m.avgWealthUsd,"avgWealthUsd")},
+    {l:"Growth",v:normUp(m.wealthGrowth25,"wealthGrowth25")},
+    {l:"Pipeline",v:normUp(m.hnwiPopGrowth25,"hnwiPopGrowth25")},
+    {l:"Risk",v:RISK.reduce((s,d)=>s+normUp(m[d.key],d.key)*d.w,0)},
+  ];
+  const S=210,c=S/2,R=76;const n=dims.length;
+  const pt=(i,val)=>{const ang=-Math.PI/2+i*2*Math.PI/n;const rr=val/100*R;return [c+rr*Math.cos(ang),c+rr*Math.sin(ang)];};
+  let g="";
+  for(let ring=1;ring<=4;ring++){let p=dims.map((d,i)=>{const ang=-Math.PI/2+i*2*Math.PI/n;const rr=R*ring/4;return `${c+rr*Math.cos(ang)},${c+rr*Math.sin(ang)}`;}).join(" ");g+=`<polygon points="${p}" fill="none" stroke="rgba(0,0,0,.06)"/>`;}
+  dims.forEach((d,i)=>{const[a,b]=pt(i,100);g+=`<line x1="${c}" y1="${c}" x2="${a}" y2="${b}" stroke="rgba(0,0,0,.06)"/>`;
+    const[lx,ly]=pt(i,122);g+=`<text x="${lx}" y="${ly+3}" text-anchor="middle" font-size="10" fill="#5F6368">${d.l}</text>`;});
+  const poly=dims.map((d,i)=>pt(i,d.v).join(",")).join(" ");
+  g+=`<polygon points="${poly}" fill="rgba(66,133,244,.22)" stroke="var(--g-blue)" stroke-width="2"/>`;
+  dims.forEach((d,i)=>{const[a,b]=pt(i,d.v);g+=`<circle cx="${a}" cy="${b}" r="2.6" fill="var(--g-blue)"/>`;});
+  return `<svg viewBox="0 0 ${S} ${S}" width="100%" style="max-width:230px;display:block;margin:0 auto">${g}</svg>`;
+}
+function investRead(m,s){
+  const size=s.a>60?"Large, mature pool":s.a>35?"Mid-sized pool":"Niche pool";
+  const mom=s.g>55?"strong momentum":s.g>35?"moderate momentum":"soft momentum";
+  const topRisk=[["FX",m.fxVol],["macro instability",m.macroRisk],["regulatory complexity",m.regComplexity],["geopolitics",m.geoRisk]].sort((a,b)=>b[1]-a[1])[0][0];
+  const rlvl=s.r>60?"high":s.r>35?"moderate":"low";
+  return `${size} with ${mom}; execution risk is ${rlvl}, driven mainly by ${topRisk}.`;
+}
+
+let CURRENT=[];
+function openDrawer(name){
+  const m=CURRENT.find(r=>r.market===name);if(!m)return;
+  const s={a:m.a,g:m.g,r:m.r,p:m.p};
+  $("dName").textContent=m.market;
+  $("dRegion").textContent=`${m.region} · ${m.segment} · ${tierText(m.tier)}`;
+  $("dBody").innerHTML=`
+    ${radar(m)}
+    <div class="lensrow">
+      <div class="lensbox"><div class="l">Attractiveness</div><div class="v" style="color:var(--g-green)">${s.a.toFixed(0)}</div></div>
+      <div class="lensbox"><div class="l">Growth</div><div class="v" style="color:var(--g-blue)">${s.g.toFixed(0)}</div></div>
+      <div class="lensbox"><div class="l">Exec risk</div><div class="v" style="color:${heatColor(s.r)}">${s.r.toFixed(0)}</div></div>
+    </div>
+    <div class="lensbox" style="border-color:rgba(90,82,213,.5)"><div class="l">Blended priority</div><div class="v" style="color:#5a52d5">${s.p.toFixed(1)}</div></div>
+    <div class="read">${investRead(m,s)}</div>
+    <table class="kv">
+      <tr><td>Millionaires (TAM)</td><td>${fmt(m.millionairesK)}k</td></tr>
+      <tr><td>Investable pool</td><td>$${fmt(m.investablePoolBn)}bn</td></tr>
+      <tr><td>Avg wealth / adult</td><td>$${fmt(m.avgWealthUsd)}</td></tr>
+      <tr><td>Wealth growth 2025</td><td>${m.wealthGrowth25}%</td></tr>
+      <tr><td>HNWI pop growth 2025</td><td>${m.hnwiPopGrowth25}%</td></tr>
+      <tr><td>5yr projected CAGR</td><td>${m.projCagr5y}%</td></tr>
+      <tr><td>Net new millionaires</td><td>${fmt(m.netNewMillK)}k</td></tr>
+      <tr><td>Wealth Gini</td><td>${m.gini}</td></tr>
+      <tr><td>FX / macro / reg / geo (1-5)</td><td>${m.fxVol} / ${m.macroRisk} / ${m.regComplexity} / ${m.geoRisk}</td></tr>
+      <tr><td>Source</td><td style="font-weight:500;text-align:right">${m.source}</td></tr>
+      <tr><td>Data confidence</td><td>${confSpan(m.confidence)}</td></tr>
+    </table>`;
+  $("drawer").classList.add("open");$("scrim").classList.add("open");
+}
+function closeDrawer(){$("drawer").classList.remove("open");$("scrim").classList.remove("open");}
+
+function syncBlendLabels(){$("wAv").textContent=blend.A+"%";$("wGv").textContent=blend.G+"%";$("wRv").textContent=blend.R+"%";
+  const sum=blend.A+blend.G+blend.R;const el=$("sumCheck");
+  el.textContent=`Σ = ${sum}%  ${sum===100?'✓':'(auto-normalised in scoring)'}`;el.className="sumcheck"+(sum===100?'':' bad');}
+function bindBlend(){["A","G","R"].forEach(k=>{const el=$("w"+k);el.oninput=()=>{blend[k]=+el.value;syncBlendLabels();render();};});}
+function setPreset(p){
+  if(p==="balanced")blend={A:40,G:35,R:25};
+  else if(p==="grow")blend={A:30,G:55,R:15};
+  else if(p==="protect")blend={A:30,G:20,R:50};
+  $("wA").value=blend.A;$("wG").value=blend.G;$("wR").value=blend.R;syncBlendLabels();render();
+}
+function bindPresets(){
+  document.querySelectorAll(".preset[data-preset]").forEach(b=>b.onclick=()=>setPreset(b.dataset.preset));
+  $("resetBtn").onclick=()=>setPreset("balanced");$("csvBtn").onclick=exportCSV;
+}
+function buildAdv(){
+  const mk=(title,defs,id)=>{let h=`<h4>${title}</h4>`;defs.forEach((d,i)=>{h+=`<div class="metric-mini"><label>${d.label}</label><input type="range" min="0" max="60" value="${Math.round(d.w*100)}" data-set="${id}" data-i="${i}"><span class="pct" id="${id}${i}v">${Math.round(d.w*100)}%</span></div>`;});return h;};
+  $("advAttr").innerHTML=mk("Attractiveness metrics",ATTR,"A");
+  $("advGrow").innerHTML=mk("Growth metrics",GROW,"G");
+  $("advRisk").innerHTML=mk("Execution-risk metrics",RISK,"R");
+  document.querySelectorAll('.metric-mini input').forEach(el=>{el.oninput=()=>{const set=el.dataset.set,i=+el.dataset.i,val=+el.value;const arr=set==="A"?ATTR:set==="G"?GROW:RISK;arr[i].w=val/100;$(set+i+"v").textContent=val+"%";render();};});
+}
+function exportCSV(){
+  const rows=computeAll().sort((a,b)=>b.p-a.p);
+  const head=["Rank","Market","Region","Segment","Attractiveness","Growth","ExecRisk","Priority","Tier","Confidence","Source"];
+  let csv=head.join(",")+"\n";
+  rows.forEach((r,i)=>{csv+=[i+1,`"${r.market}"`,r.region,`"${r.segment}"`,r.a.toFixed(1),r.g.toFixed(1),r.r.toFixed(1),r.p.toFixed(1),tierText(r.tier),r.confidence,`"${r.source}"`].join(",")+"\n";});
+  const blob=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wm_market_priority.csv";a.click();
+}
+function renderMethod(){
+  const lens=[
+    ["HNW / millionaire population","Attractiveness","Addressable market (TAM) — prospective relationships"],
+    ["Investable wealth pool","Attractiveness","Revenue pool / fee base — size of the prize"],
+    ["Avg wealth per adult","Attractiveness","Ticket size and RM cost-to-serve efficiency"],
+    ["Wealth growth","Growth","Organic compounding of the revenue pool"],
+    ["Concentration (Gini)","Both","Acquisition efficiency and key-client / AML risk"],
+    ["Currency movement","Execution risk","FX translation risk to CHF/USD-reported earnings"],
+    ["Financial-crisis indicators","Execution risk","Downside to AUM and fee income"],
+    ["Regulatory complexity","Execution risk","Cost-to-serve drag (MiFID II, FINMA, MAS, SFC, FCA)"],
+    ["Geography & client segment","Both","Where and to whom to deploy RM capacity"],
+  ];
+  $("lensBody").innerHTML=lens.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+  const src=[
+    ["Millionaire / HNW population","UBS GWR 2026; Capgemini WWR 2026","Mixed"],
+    ["Investable wealth pool","PwC 2025 AWM; UBS GWR 2026","Estimate"],
+    ["Average wealth per adult","UBS GWR 2026, Table 1","Mixed"],
+    ["Wealth growth 2025","UBS GWR 2026","Sourced"],
+    ["HNWI population growth 2025","Capgemini WWR 2026","Mixed"],
+    ["5yr projected wealth CAGR","UBS GWR outlook; PwC AWM","Estimate"],
+    ["Net new millionaires 2025","UBS GWR 2026; Capgemini WWR 2026","Mixed"],
+    ["Wealth Gini","UBS GWR 2026 (wealth-Gini)","Mixed"],
+    ["FX volatility","Analyst estimate (vs USD/CHF)","Estimate"],
+    ["Macro-financial instability","Analyst estimate (sovereign proxy)","Estimate"],
+    ["Regulatory complexity","Analyst estimate","Estimate"],
+    ["Geopolitical risk","Analyst estimate","Estimate"],
+  ];
+  $("srcBody").innerHTML=src.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="ctr">${confSpan(r[2])}</td></tr>`).join("");
+}
+function render(){
+  const rows=computeAll();CURRENT=rows;
+  const view=activeRegion==="All"?rows:rows.filter(r=>r.region===activeRegion);
+  renderKPIs(view);renderTableHead();renderTable(rows);renderBubble(view);
+}
+renderRegionChips();bindBlend();bindPresets();buildAdv();syncBlendLabels();renderMethod();render();
+document.addEventListener('keydown',e=>{if(e.key==="Escape")closeDrawer();});
+</script>
+</body>
+</html>

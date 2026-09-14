@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Strategic Command Center — Chief of Staff</title>
+<style>
+/* ============================================================
+   Strategic Command Center — HSBC-themed Chief of Staff system
+   Self-contained prototype. Fictional demonstration data only.
+   ============================================================ */
+:root{
+  /* HSBC brand */
+  --hsbc-red:#DB0011;
+  --hsbc-red-dark:#A80009;
+  /* status / accent system */
+  --blue:#4285F4;
+  --decision-blue:#0A66C2;
+  --green:#34A853;
+  --amber:#FBBC05;
+  --red:#EA4335;
+  --purple:#7C4DFF;
+  --ink:#1D1D1F;
+  --ink2:#5F6368;
+  --canvas:#F4F7FB;
+  --glass:rgba(255,255,255,0.70);
+  --glass-strong:rgba(255,255,255,0.85);
+  --border:rgba(20,30,50,0.10);
+  --shadow:0 8px 30px rgba(20,30,50,0.10);
+  --radius:14px;
+  font-synthesis:none;
+}
+html[data-mode="dark"]{
+  --canvas:#0d1117;
+  --glass:rgba(30,36,48,0.62);
+  --glass-strong:rgba(30,36,48,0.85);
+  --ink:#F2F4F8;
+  --ink2:#A9B2C3;
+  --border:rgba(255,255,255,0.10);
+  --shadow:0 8px 30px rgba(0,0,0,0.45);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  color:var(--ink);
+  background:var(--canvas);
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.tnum{font-variant-numeric:tabular-nums}
+/* aurora backdrop */
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora span{position:absolute;border-radius:50%;filter:blur(90px);opacity:.28}
+.aurora .a1{width:520px;height:520px;background:var(--hsbc-red);top:-140px;right:-80px}
+.aurora .a2{width:480px;height:480px;background:var(--blue);bottom:-160px;left:120px;opacity:.20}
+.aurora .a3{width:420px;height:420px;background:var(--purple);top:40%;left:45%;opacity:.14}
+html[data-mode="dark"] .aurora span{opacity:.20}
+
+/* layout */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:238px 1fr;grid-template-rows:auto 1fr;height:100vh}
+header.top{grid-column:1/3;display:flex;align-items:center;gap:14px;padding:10px 18px;
+  background:var(--glass-strong);backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);
+  border-bottom:1px solid var(--border);box-shadow:var(--shadow);z-index:20}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+.hex{width:26px;height:26px;flex:none}
+.brand small{display:block;font-weight:500;color:var(--ink2);font-size:11px;letter-spacing:.3px}
+.top .sel,.top input,.top button{font-family:inherit;font-size:12.5px;color:var(--ink)}
+.top .sel{background:var(--glass);border:1px solid var(--border);border-radius:9px;padding:6px 8px;cursor:pointer}
+.top .spacer{flex:1}
+.searchbox{position:relative}
+.searchbox input{background:var(--glass);border:1px solid var(--border);border-radius:20px;padding:7px 12px 7px 30px;width:190px;outline:none}
+.searchbox svg{position:absolute;left:9px;top:8px;opacity:.5}
+.search-results{position:absolute;top:38px;left:0;width:340px;max-height:400px;overflow:auto;background:var(--glass-strong);
+  backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);z-index:50;display:none}
+.search-results.show{display:block}
+.search-results .grp{padding:6px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2);background:rgba(0,0,0,.03)}
+.search-results .row{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border)}
+.search-results .row:hover{background:rgba(66,133,244,.12)}
+.iconbtn{background:var(--glass);border:1px solid var(--border);border-radius:9px;width:34px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.iconbtn .dot{position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--hsbc-red)}
+.btn{background:var(--hsbc-red);color:#fff;border:none;border-radius:9px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12.5px}
+.btn.alt{background:var(--decision-blue)}
+.btn.ghost{background:var(--glass);color:var(--ink);border:1px solid var(--border)}
+.freshness{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink2)}
+.freshness .fdot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.userchip{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:20px;background:var(--glass);border:1px solid var(--border)}
+.avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--hsbc-red),var(--purple));color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+
+/* nav */
+nav.side{background:var(--glass);backdrop-filter:blur(18px);border-right:1px solid var(--border);padding:12px 10px;overflow:auto}
+nav.side .navitem{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;cursor:pointer;color:var(--ink2);font-weight:500;margin-bottom:2px;font-size:13px}
+nav.side .navitem:hover{background:rgba(66,133,244,.10);color:var(--ink)}
+nav.side .navitem.active{background:linear-gradient(135deg,rgba(219,0,17,.14),rgba(124,77,255,.10));color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1px var(--border)}
+nav.side .navitem .ni{width:18px;text-align:center;font-size:15px}
+nav.side .navitem .badge{margin-left:auto;background:var(--hsbc-red);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700}
+nav .sectlabel{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--ink2);padding:12px 11px 4px}
+
+/* main */
+main{overflow:auto;padding:0}
+.filterbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 22px;
+  background:var(--glass-strong);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.filterbar select{font-family:inherit;font-size:12px;color:var(--ink);background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:5px 7px;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:6px;background:rgba(66,133,244,.14);border:1px solid rgba(66,133,244,.3);color:var(--ink);border-radius:16px;padding:3px 9px;font-size:11.5px}
+.chip b{font-weight:600}.chip .x{cursor:pointer;opacity:.6}
+.clearall{font-size:11.5px;color:var(--decision-blue);cursor:pointer;font-weight:600}
+.page{padding:20px 22px 60px;max-width:1500px}
+h1.pt{font-size:22px;margin:2px 0 2px;font-weight:700;letter-spacing:-.3px}
+.sub{color:var(--ink2);margin:0 0 16px;font-size:13px}
+.section-h{font-size:15px;font-weight:700;margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.card{background:var(--glass);backdrop-filter:blur(18px) saturate(1.2);-webkit-backdrop-filter:blur(18px);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent)}
+html[data-mode="dark"] .card::before{background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.kpi{padding:14px 16px}
+.kpi .lbl{font-size:11.5px;color:var(--ink2);font-weight:500}
+.kpi .val{font-size:26px;font-weight:700;margin-top:4px;letter-spacing:-.5px}
+.kpi .meta{font-size:11px;color:var(--ink2);margin-top:2px}
+.kpi .val.small{font-size:19px}
+/* badges */
+.badge-status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-status .sd{width:8px;height:8px;border-radius:50%}
+.s-ontrack{background:rgba(52,168,83,.15);color:#177a34}.s-ontrack .sd{background:var(--green)}
+.s-attention{background:rgba(251,188,5,.18);color:#8a6d00}.s-attention .sd{background:var(--amber)}
+.s-risk{background:rgba(234,67,53,.13);color:#b31c10}.s-risk .sd{background:var(--red)}
+.s-critical{background:rgba(234,67,53,.22);color:#a1160b}.s-critical .sd{background:var(--red)}
+.s-complete{background:rgba(10,102,194,.13);color:#084b8f}.s-complete .sd{background:var(--decision-blue)}
+.s-notstarted,.s-hold{background:rgba(95,99,104,.15);color:#4a4e53}.s-notstarted .sd,.s-hold .sd{background:var(--ink2)}
+html[data-mode="dark"] .s-ontrack{color:#7ee39a}html[data-mode="dark"] .s-attention{color:#ffd863}
+html[data-mode="dark"] .s-risk,html[data-mode="dark"] .s-critical{color:#ff8b81}html[data-mode="dark"] .s-complete{color:#7fb6ff}
+html[data-mode="dark"] .s-notstarted,html[data-mode="dark"] .s-hold{color:#b8bec9}
+.conf{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:600}
+.conf.high{background:rgba(52,168,83,.16);color:#177a34}.conf.medium{background:rgba(251,188,5,.18);color:#8a6d00}.conf.low{background:rgba(234,67,53,.14);color:#b31c10}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;background:rgba(124,77,255,.12);color:#5b34d6;font-weight:600}
+html[data-mode="dark"] .pill{color:#b79bff}
+/* tables */
+table.grid-t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.grid-t th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2);padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;position:sticky;top:0;background:var(--glass-strong);white-space:nowrap}
+table.grid-t td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.grid-t tbody tr{cursor:pointer}
+table.grid-t tbody tr:hover{background:rgba(66,133,244,.07)}
+.tablewrap{overflow:auto;max-height:560px;border-radius:12px}
+/* progress */
+.bar{height:7px;border-radius:6px;background:rgba(95,99,104,.16);overflow:hidden;min-width:52px}
+.bar > i{display:block;height:100%;border-radius:6px}
+.mini{font-size:11px;color:var(--ink2)}
+/* drawer */
+.drawer-scrim{position:fixed;inset:0;background:rgba(10,15,25,.42);backdrop-filter:blur(2px);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
+.drawer-scrim.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(720px,94vw);background:var(--glass-strong);backdrop-filter:blur(26px) saturate(1.3);
+  border-left:1px solid var(--border);box-shadow:-16px 0 50px rgba(10,15,25,.3);z-index:61;transform:translateX(100%);transition:transform .28s cubic-bezier(.22,.61,.36,1);overflow:auto}
+.drawer.show{transform:translateX(0)}
+.drawer .dh{position:sticky;top:0;background:var(--glass-strong);backdrop-filter:blur(20px);padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;z-index:2}
+.drawer .db{padding:18px 20px 60px}
+.closex{margin-left:auto;background:var(--glass);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:16px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:14px 0;border-bottom:1px solid var(--border)}
+.tabs .tab{padding:7px 12px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink2);border-bottom:2px solid transparent}
+.tabs .tab.active{color:var(--ink);border-bottom-color:var(--hsbc-red)}
+/* modal */
+.modal-scrim{position:fixed;inset:0;background:rgba(10,15,25,.42);z-index:70;display:none;align-items:center;justify-content:center}
+.modal-scrim.show{display:flex}
+.modal{background:var(--glass-strong);backdrop-filter:blur(24px);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);width:min(620px,94vw);max-height:88vh;overflow:auto;padding:20px}
+.modal h3{margin:0 0 4px}
+label.f{display:block;font-size:11.5px;color:var(--ink2);font-weight:600;margin:10px 0 3px}
+input.f,select.f,textarea.f{width:100%;font-family:inherit;font-size:13px;color:var(--ink);background:var(--glass);border:1px solid var(--border);border-radius:9px;padding:8px 10px;outline:none}
+textarea.f{min-height:60px;resize:vertical}
+/* trace popover */
+.trace{cursor:help;border-bottom:1px dotted var(--ink2)}
+.tip{position:fixed;z-index:90;max-width:320px;background:var(--ink);color:#fff;border-radius:10px;padding:10px 12px;font-size:11.5px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.4);pointer-events:none;opacity:0;transition:opacity .12s}
+.tip.show{opacity:1}
+.tip b{color:#ffd863}
+/* misc */
+.story-card{border-left:3px solid var(--blue);padding-left:12px}
+.flex{display:flex;gap:10px;align-items:center}.wrap{flex-wrap:wrap}.between{justify-content:space-between}
+.muted{color:var(--ink2)}
+.tag{display:inline-block;background:rgba(95,99,104,.12);border-radius:6px;padding:1px 7px;font-size:10.5px;margin:2px 3px 0 0}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.attnhead{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.demo-flag{display:inline-flex;align-items:center;gap:6px;background:rgba(251,188,5,.14);border:1px solid rgba(251,188,5,.35);color:#8a6d00;border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:600}
+html[data-mode="dark"] .demo-flag{color:#ffd863}
+.node{cursor:pointer}
+.dragging{opacity:.5}
+.agenda-item{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--glass);cursor:grab}
+.empty{text-align:center;padding:50px 20px;color:var(--ink2)}
+.empty .big{font-size:34px;opacity:.4;margin-bottom:8px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:99;opacity:0;transition:all .25s;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.heat td{width:34px;height:34px;text-align:center;border-radius:6px;color:#fff;font-weight:700;font-size:12px}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:rgba(95,99,104,.35);border-radius:6px}
+@media (max-width:1080px){.app{grid-template-columns:1fr}nav.side{position:fixed;top:53px;bottom:0;left:0;width:238px;z-index:30;transform:translateX(-100%);transition:transform .25s}nav.side.open{transform:none}.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media (max-width:640px){.g4,.g2{grid-template-columns:1fr}.searchbox input{width:120px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="aurora"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+<div class="app">
+  <header class="top">
+    <button class="iconbtn" id="navToggle" style="display:none" title="Menu">☰</button>
+    <div class="brand">
+      <svg class="hex" viewBox="0 0 40 40" aria-label="HSBC"><polygon points="20,2 20,20 2,20" fill="#DB0011"/><polygon points="20,2 20,20 38,20" fill="#fff" stroke="#DB0011" stroke-width="0"/><polygon points="20,38 20,20 2,20" fill="#fff"/><polygon points="20,38 20,20 38,20" fill="#DB0011"/><rect x="2" y="2" width="36" height="36" fill="none" stroke="#DB0011" stroke-width="1.5"/></svg>
+      <div>Strategic Command Center<small>Chief of Staff · Wealth Management</small></div>
+    </div>
+    <select class="sel" id="orgSel" title="Organization"><option>Global Wealth Management</option><option>Private Bank</option><option>Asset Management</option></select>
+    <select class="sel" id="periodSel" title="Reporting period"></select>
+    <div class="spacer"></div>
+    <div class="searchbox">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="globalSearch" placeholder="Search initiatives, risks, decisions…" autocomplete="off"/>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="freshness" title="Data freshness"><span class="fdot"></span><span id="freshLbl">Fresh</span></div>
+    <button class="iconbtn" id="notifBtn" title="Notifications">🔔<span class="dot"></span></button>
+    <button class="iconbtn" id="modeBtn" title="Toggle glass mode">◐</button>
+    <select class="sel" id="createSel" title="Create"><option value="">＋ Create</option><option value="initiative">New initiative</option><option value="risk">New risk</option><option value="dependency">New dependency</option><option value="action">New action</option><option value="decision">New decision request</option><option value="benefit">New benefit</option><option value="agenda">New meeting agenda</option><option value="note">New portfolio note</option></select>
+    <button class="btn ghost" id="exportBtn">⭳ Export</button>
+    <div class="userchip"><span class="avatar" id="userAv">KS</span><div style="font-size:11.5px;line-height:1.2"><b id="userName">K Shreenath</b><br><span class="muted" id="userRole">Group Chief of Staff</span></div></div>
+  </header>
+
+  <nav class="side" id="sideNav"></nav>
+
+  <main id="main">
+    <div class="filterbar" id="filterBar"></div>
+    <div id="pageRoot"></div>
+  </main>
+</div>
+
+<!-- overlays -->
+<div class="drawer-scrim" id="drawerScrim"></div>
+<div class="drawer" id="drawer"></div>
+<div class="modal-scrim" id="modalScrim"><div class="modal" id="modal"></div></div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   1. TYPES (documented in README) are represented as plain
+   objects. 2. SEED DATA is generated below. 3. CALCULATIONS,
+   4. STATE, 5. COMPONENTS/PAGES, 6. EXPORT, 7. NARRATIVE.
+   ============================================================ */
+</script>
+<script>
+/* ============================================================
+   scc.data.js — Seed data layer (Fictional demonstration data)
+   Structured so it can later be replaced by Dataverse / Lists /
+   SharePoint / Planner / Graph / Azure SQL / Power BI / Workday.
+   ============================================================ */
+window.SCC = window.SCC || {};
+
+(function(){
+  const REGIONS = ['Europe','Asia-Pacific','Middle East and Africa','Americas','Global'];
+  const PILLARS = ['Client growth','Digital wealth','Operating-model simplification','Regulatory resilience','Data and AI','Cost transformation','Advisor productivity','Sustainable investing'];
+  const SEGMENTS = ['Affluent','HNW','UHNW','Mass affluent','Family office'];
+  const TYPES = ['Transformation','Regulatory','Technology','Growth','Efficiency','Risk'];
+  const BENEFIT_TYPES = ['Revenue growth','Cost reduction','Cost avoidance','Risk reduction','Capital efficiency','Client experience','Employee productivity','Regulatory compliance','Operational resilience','Strategic capability'];
+  const PEOPLE = ['A. Fischer','L. Nakamura','R. Okafor','S. Martinez','J. Whitfield','P. Andersson','M. Al-Rashid','C. Dubois','T. Yamamoto','N. Bianchi','D. Okonkwo','V. Petrov','H. Kimura','E. Rossi','G. Mensah','B. Laurent','K. Svensson','O. Hassan','F. Costa','Y. Tanaka'];
+  const FORUMS = ['Group ExCo','Regional Steering','Investment Committee','Risk Committee','Technology Board','Finance Council'];
+
+  const PERIODS = ['2026-07','2026-08','2026-09'];
+
+  const INITS = [
+    ['Europe digital client onboarding','EU onboarding','Digital wealth','Europe',['United Kingdom','Germany','Switzerland'],'Affluent'],
+    ['Asia-Pacific advisor workstation modernization','APAC workstation','Advisor productivity','Asia-Pacific',['Hong Kong','Singapore','Japan'],'HNW'],
+    ['Global client master-data foundation','Client MDM','Data and AI','Global',['United Kingdom','United States','Hong Kong'],'UHNW'],
+    ['Middle East booking-center expansion','ME booking centre','Client growth','Middle East and Africa',['United Arab Emirates','Saudi Arabia'],'UHNW'],
+    ['Africa mobile wealth proposition','Africa mobile','Client growth','Middle East and Africa',['South Africa','Kenya','Nigeria'],'Mass affluent'],
+    ['Americas next-best-action engine','Americas NBA','Data and AI','Americas',['United States','Brazil'],'Affluent'],
+    ['Global financial-crime control uplift','FC control uplift','Regulatory resilience','Global',['United Kingdom','United States','Singapore'],'HNW'],
+    ['Europe cross-border suitability remediation','EU suitability','Regulatory resilience','Europe',['France','Italy','Luxembourg'],'HNW'],
+    ['Asia-Pacific affluent-to-HNW conversion','APAC conversion','Client growth','Asia-Pacific',['Hong Kong','Singapore'],'Affluent'],
+    ['Global investment-product rationalization','Product rationalization','Operating-model simplification','Global',['United Kingdom','Switzerland'],'HNW'],
+    ['Advisor capacity and productivity program','Advisor capacity','Advisor productivity','Global',['United States','United Kingdom','Hong Kong'],'HNW'],
+    ['Global wealth data governance','Data governance','Data and AI','Global',['United Kingdom','Germany','Singapore'],'UHNW'],
+    ['Client reporting modernization','Reporting modern.','Digital wealth','Europe',['United Kingdom','Switzerland','Germany'],'HNW'],
+    ['Global cloud and platform simplification','Cloud simplification','Cost transformation','Global',['United States','India','Poland'],'HNW'],
+    ['Sustainable-investing proposition refresh','Sustainable investing','Sustainable investing','Europe',['United Kingdom','France','Switzerland'],'UHNW'],
+    ['Regional operating-model redesign','Op-model redesign','Operating-model simplification','Asia-Pacific',['Hong Kong','Singapore','Australia'],'HNW'],
+    ['Relationship-manager learning academy','RM academy','Advisor productivity','Global',['United Kingdom','Hong Kong','United Arab Emirates'],'HNW'],
+    ['Global strategic market-entry program','Market entry','Client growth','Global',['Saudi Arabia','India','Brazil'],'UHNW'],
+  ];
+
+  // deterministic pseudo-random for stable seed
+  let _s = 987654321;
+  function rnd(){ _s = (_s*1103515245 + 12345) & 0x7fffffff; return _s/0x7fffffff; }
+  function pick(a){ return a[Math.floor(rnd()*a.length)]; }
+  function ri(a,b){ return Math.floor(rnd()*(b-a+1))+a; }
+  function daysFrom(base, d){ const dt=new Date(base); dt.setDate(dt.getDate()+d); return dt.toISOString().slice(0,10); }
+  const TODAY = new Date('2026-09-13');
+  const iso = d => d.toISOString().slice(0,10);
+
+  const initiatives=[], milestones=[], risks=[], dependencies=[], actions=[], decisions=[], benefits=[], agendas=[], narratives=[], audit=[];
+
+  // curated status flavour per initiative to hit a realistic distribution
+  const flavour = ['ontrack','ontrack','critical','attention','risk','ontrack','risk','attention','ontrack','ontrack','attention','risk','ontrack','critical','ontrack','attention','ontrack','risk'];
+
+  INITS.forEach((row,i)=>{
+    const id='INI-'+String(i+1).padStart(3,'0');
+    const [title,short,pillar,region,countries,segment]=row;
+    const fv=flavour[i];
+    const approved= ri(4,45)*1000000;
+    // budget variance driven by flavour
+    let fVarPct = fv==='critical'? ri(16,26)/100 : fv==='risk'? ri(9,15)/100 : fv==='attention'? ri(3,8)/100 : ri(-6,2)/100;
+    const forecast= Math.round(approved*(1+fVarPct));
+    const actual= Math.round(forecast * (ri(30,75)/100));
+    const req= ri(14,120);
+    let cover = fv==='critical'? ri(45,59)/100 : fv==='risk'? ri(60,74)/100 : fv==='attention'? ri(75,89)/100 : ri(90,102)/100;
+    const assigned= Math.round(req*cover);
+    const bTarget= ri(6,60)*1000000;
+    const bConf= fv==='critical'?'Low': fv==='risk'?'Low': fv==='attention'?'Medium': pick(['High','High','Medium']);
+    const bForecastPct = fv==='critical'? ri(45,68)/100 : fv==='risk'? ri(60,72)/100 : ri(78,100)/100;
+    const bForecast= Math.round(bTarget*bForecastPct);
+    const bRealized= Math.round(bForecast*(ri(10,55)/100));
+    const start= daysFrom(TODAY, -ri(120,420));
+    const end= daysFrom(TODAY, ri(60,520));
+    const comp= fv==='critical'? ri(20,45): fv==='risk'? ri(30,55): fv==='attention'? ri(45,70): ri(55,92);
+    const stratAlign= ri(55,98), execCommit= ri(50,97), regUrg= pillar.includes('Regulatory')? ri(75,98): ri(20,70), timeCrit= ri(30,95), enable= ri(20,95), clientImpact= ri(40,98);
+
+    initiatives.push({
+      initiativeId:id, title, shortTitle:short, strategicPillar:pillar,
+      initiativeType: pillar.includes('Regulatory')?'Regulatory': pick(TYPES),
+      description:`${title} — a strategic initiative to strengthen the wealth-management franchise across ${region}.`,
+      executiveNarrative:'', businessProblem:`Current capability in ${short.toLowerCase()} constrains ${segment} client outcomes and creates operational drag across ${region}.`,
+      intendedOutcome:`Deliver measurable ${pick(['revenue growth','cost reduction','client-experience','risk-reduction'])} while enabling scalable operations.`,
+      region, countries, businessUnit: pick(['Wealth Core','Private Bank','Platform & Ops','Advisory']), clientSegment:segment,
+      executiveSponsor: PEOPLE[i%PEOPLE.length], initiativeOwner: PEOPLE[(i+5)%PEOPLE.length],
+      deliveryLead: PEOPLE[(i+9)%PEOPLE.length], financePartner: PEOPLE[(i+13)%PEOPLE.length], workforcePartner: PEOPLE[(i+17)%PEOPLE.length],
+      startDate:start, targetEndDate:end, currentPhase: pick(['Discovery','Design','Build','Pilot','Scale']),
+      ownerReportedStatus:null, statusOverride:null,
+      confidenceLevel: bConf, completionPercentage:comp,
+      approvedBudget:approved, forecastBudget:forecast, actualSpend:actual, contingencyBudget:Math.round(approved*0.08), currency:'USD',
+      requiredHeadcount:req, assignedHeadcount:assigned, specialistSkillsRequired: pick([['Data engineering','Compliance'],['Cloud','Security'],['Advisory design','Change'],['Actuarial','Risk modelling']]),
+      benefitTarget:bTarget, benefitRealized:bRealized, benefitForecast:bForecast, benefitConfidence:bConf, benefitType: pick(BENEFIT_TYPES),
+      affectedClients: ri(2,180)*1000, affectedEmployees: ri(50,4000),
+      lastUpdateDate: daysFrom(TODAY, -ri(0,40)), nextUpdateDue: daysFrom(TODAY, ri(-8,20)),
+      tags:[pillar, region, segment],
+      // scoring inputs
+      _stratAlign:stratAlign,_execCommit:execCommit,_regUrg:regUrg,_timeCrit:timeCrit,_enable:enable,_clientImpact:clientImpact,
+      linkedMarketIds:[], linkedRiskIds:[], linkedDependencyIds:[], linkedDecisionIds:[], linkedBenefitIds:[], linkedActionIds:[], linkedMilestoneIds:[]
+    });
+
+    // milestones (2-4 each -> ~50)
+    const mc = ri(2,4);
+    for(let m=0;m<mc;m++){
+      const mid=`MS-${i+1}-${m+1}`;
+      const baseOffset = -60 + m*ri(40,80);
+      let slip = fv==='critical'&&m===0? ri(31,60): fv==='risk'&&m===0? ri(15,30): fv==='attention'&&m===0? ri(1,14): ri(-10,6);
+      const done = comp> (m+1)/mc*100 && slip<=0;
+      milestones.push({milestoneId:mid, initiativeId:id, title:`${['Discovery sign-off','Design baseline','Build complete','Pilot go-live','Scale readiness'][m]||'Milestone '+(m+1)}`,
+        description:'Key delivery checkpoint.', owner:PEOPLE[(i+m)%PEOPLE.length],
+        baselineDate:daysFrom(TODAY,baseOffset), forecastDate:daysFrom(TODAY,baseOffset+slip),
+        actualDate: done? daysFrom(TODAY,baseOffset+Math.min(slip,0)) : null,
+        status: done?'Complete': slip>30?'At risk': slip>0?'Late':'On track',
+        criticality: m===0||m===mc-1?'Critical':'High', completionPercentage: done?100: Math.max(0,comp - m*20),
+        decisionGate: m===1, evidenceLink:'#', comments: slip>0?`Forecast slipped ${slip} days versus baseline.`:'', _slip:slip});
+      initiatives[i].linkedMilestoneIds.push(mid);
+    }
+
+    // risks (1-2 each -> ~28)
+    const rc = (fv==='critical'||fv==='risk'||fv==='attention')? 2:1;
+    for(let r=0;r<rc;r++){
+      const rid=`RSK-${i+1}-${r+1}`;
+      const prob=ri(2,5), imp= fv==='critical'? ri(4,5): ri(2,5);
+      const inh=prob*imp;
+      const resP=Math.max(1,prob-ri(0,2)), resI=Math.max(1,imp-ri(0,1));
+      risks.push({riskId:rid, initiativeId:id, title:`${pick(['Delivery capacity shortfall','Regulatory approval delay','Data quality gap','Vendor dependency','Cyber & security exposure','Change adoption risk','Key-skill attrition'])}`,
+        description:'Risk to committed outcome.', category: pick(['Delivery','Regulatory','Technology','People','Financial','Vendor']),
+        cause:'Root cause under review.', riskEvent:'Adverse event materialises.', consequence:'Milestone and benefit impact.',
+        probability:prob, impact:imp, inherentScore:inh, mitigation:'Mitigation plan in progress.', mitigationOwner:PEOPLE[(i+r+2)%PEOPLE.length],
+        mitigationDueDate:daysFrom(TODAY,ri(-20,40)), residualProbability:resP, residualImpact:resI, residualScore:resP*resI,
+        trend: pick(['Increasing','Stable','Stable','Decreasing']), status: pick(['Open','Open','Mitigating','Monitored']),
+        dateIdentified:daysFrom(TODAY,-ri(20,180)), lastReviewed:daysFrom(TODAY,-ri(0,30)),
+        executiveAttentionRequired: inh>=16, linkedDecisionId:null, region});
+      initiatives[i].linkedRiskIds.push(rid);
+    }
+
+    // benefits (1-2 -> ~22)
+    const benc = ri(1,2);
+    for(let b=0;b<benc;b++){
+      const bid=`BEN-${i+1}-${b+1}`;
+      const tgt= Math.round(bTarget/benc);
+      const fc= Math.round(bForecast/benc);
+      const rz= Math.round(bRealized/benc);
+      benefits.push({benefitId:bid, initiativeId:id, title:`${pick(['Net new revenue','Cost-to-serve reduction','Operational loss avoidance','Advisor time released','Capital efficiency gain','Client attrition reduction'])}`,
+        benefitType: pick(BENEFIT_TYPES), description:'Quantified value driver.', baselineValue:0, targetValue:tgt, forecastValue:fc, realizedValue:rz,
+        unit:'USD', currency:'USD', measurementMethod: pick(['Finance ledger','Client survey','Time-in-motion','Model-based estimate']),
+        baselineDate:start, targetDate:end, benefitOwner:initiatives[i].financePartner, financeValidated: bConf==='High'&&rnd()>0.4,
+        confidence:bConf, sustainabilityStatus: pick(['Embedding','At risk','Sustained','Not assessed']), linkedDecisionIds:[], evidenceLink:'#',
+        lastMeasuredDate:daysFrom(TODAY,-ri(0,45)), region, pillar});
+      initiatives[i].linkedBenefitIds.push(bid);
+    }
+  });
+
+  // dependencies (~20) between initiatives
+  for(let d=0;d<20;d++){
+    const s=ri(0,17), t=(s+ri(1,6))%18;
+    const did=`DEP-${d+1}`;
+    const crit= pick(['Critical','High','Medium','High','Critical']);
+    const overdue = rnd()>0.55;
+    dependencies.push({dependencyId:did, title:`${pick(['Shared data platform','Common API gateway','Compliance framework','Cloud landing zone','Client master feed','Identity service'])} handover`,
+      description:'Cross-initiative delivery dependency.', sourceInitiativeId:initiatives[s].initiativeId, targetInitiativeId:initiatives[t].initiativeId,
+      dependencyType: pick(['Data','Technology','Process','Regulatory','Vendor','Resource']), dependencyOwner:pick(PEOPLE),
+      requiredByDate:daysFrom(TODAY, ri(-30,60)), committedDate: overdue? daysFrom(TODAY,ri(-25,-2)) : daysFrom(TODAY, ri(-5,55)),
+      status: overdue?'Overdue': pick(['On track','At risk','Committed']), probabilityOfDelay: overdue? ri(60,95):ri(10,55),
+      delayImpactDays: ri(5,45), financialImpact: ri(1,20)*100000, criticality:crit, escalationState: overdue?'Escalated':'Monitored',
+      nextAction:'Confirm handover date with owner.', linkedDecisionId:null, region:initiatives[s].region});
+    initiatives[s].linkedDependencyIds.push(did);
+  }
+
+  // decisions (~16)
+  const DEC_TITLES=[
+    ['Approve phased rollout or global launch','Should we launch globally now or continue phased regional rollout?'],
+    ['Prioritize Europe or Asia-Pacific deployment','Which region receives the next deployment slot?'],
+    ['Approve additional compliance headcount','Do we fund 12 additional compliance FTE?'],
+    ['Select centralized or federated data ownership','Which data-ownership operating model do we adopt?'],
+    ['Continue, pause, or stop low-benefit initiative','Should the initiative continue given benefit shortfall?'],
+    ['Approve vendor extension or competitive rebid','Extend incumbent vendor or run a competitive rebid?'],
+    ['Accept milestone delay or add capacity','Accept a 30-day delay or fund additional delivery capacity?'],
+    ['Fund regulatory remediation before growth','Which investment takes priority this quarter?'],
+    ['Consolidate platforms or retain regional variation','Consolidate to one platform or keep regional variants?'],
+    ['Approve data-residency approach for APAC pilot','Which data-residency model unlocks the APAC pilot?'],
+    ['Approve budget uplift for cloud simplification','Do we approve a 10% budget uplift?'],
+    ['Select build vs. buy for reporting engine','Do we build or buy the client-reporting engine?'],
+    ['Approve advisor academy scale-up','Scale the academy globally or hold at pilot?'],
+    ['Reallocate resources from stalled initiative','Reallocate five FTE to a higher-priority initiative?'],
+    ['Approve sustainable-investing product set','Approve the refreshed product taxonomy?'],
+    ['Accept residual risk or extend remediation','Accept residual suitability risk or extend remediation?'],
+  ];
+  DEC_TITLES.forEach((dt,i)=>{
+    const did=`DEC-${String(i+1).padStart(3,'0')}`;
+    const ini=initiatives[i%18];
+    const stat= pick(['Ready for decision','Evidence gathering','Deferred','Approved','Ready for decision','Draft','Conditional approval']);
+    const req= daysFrom(TODAY, ri(-25,55));
+    const overdue = new Date(req) < TODAY && !['Approved','Rejected','Conditional approval','Closed','Superseded'].includes(stat);
+    const decided = ['Approved','Conditional approval','Rejected'].includes(stat);
+    const opts=[0,1,2].map(o=>({optionId:`${did}-O${o+1}`, title:['Proceed as recommended','Phased alternative','Do nothing / hold'][o],
+      description:['Full delivery of recommended path','Partial / staged delivery','Maintain current state'][o],
+      advantages:[['Fastest benefit','Clear ownership'],['Lower risk','Flexible'],['No spend']][o],
+      disadvantages:[['Higher cost'],['Slower benefit'],['Benefit forgone','Risk grows']][o],
+      costImpact:[ri(2,12)*100000,ri(1,6)*100000,0][o], headcountImpact:[ri(3,15),ri(1,6),0][o], scheduleImpact:[`-${ri(10,40)}d`,`+${ri(5,20)}d`,`+${ri(30,90)}d`][o],
+      riskImpact:['Reduces','Neutral','Increases'][o], benefitImpact:[`+${ri(3,20)}M`,`+${ri(1,8)}M`,'0'][o],
+      implementationComplexity:['High','Medium','Low'][o], reversibility:['Low','Medium','High'][o], confidence:['Medium','High','High'][o], supportingEvidence:'Analysis pack attached.'}));
+    decisions.push({decisionId:did, title:dt[0], decisionQuestion:dt[1], decisionContext:`Raised by ${ini.shortTitle}. ${overdue?'Decision is now overdue and is blocking downstream milestones.':'Required to unblock the next delivery phase.'}`,
+      decisionType: pick(['Investment','Prioritization','Operating model','Vendor','Risk acceptance']), requestingInitiativeId:ini.initiativeId,
+      requestedBy:ini.initiativeOwner, decisionOwner:ini.executiveSponsor, decisionForum:pick(FORUMS), requiredByDate:req,
+      decisionStatus:stat, urgency: overdue?'Critical': pick(['High','Medium','High']), consequenceOfDelay:`A delay would push ${ini.shortTitle} beyond its regulatory / delivery window and defer benefit by ${ri(1,3)} months.`,
+      estimatedDelayImpact:`${ri(15,60)} days`, estimatedFinancialImpact: ri(2,25)*100000, options:opts, recommendedOptionId:`${did}-O1`,
+      recommendationRationale:'Option 1 delivers the strongest benefit-to-risk balance and unblocks dependent initiatives.',
+      assumptions:'Capacity and funding available in-period.', evidence:'Business case v2, risk assessment, finance validation.',
+      decisionDate: decided? daysFrom(TODAY,-ri(1,20)):null, finalDecision: decided? opts[0].title:null,
+      finalRationale: decided? 'Approved on the basis of benefit case and dependency unblocking.':null, conditions: stat==='Conditional approval'?'Subject to monthly benefit review.':null,
+      dissentingViews: decided&&rnd()>0.7?'Finance noted benefit confidence should be monitored.':null,
+      followUpActions:[], reviewDate: decided? daysFrom(TODAY, ri(30,90)):null, supersedesDecisionId:null, supersededByDecisionId:null,
+      benefitHypothesis:`Unlocks ${(ri(3,20))}M benefit for ${ini.shortTitle}.`, benefitRealized: decided? ri(0,8)*1000000:0,
+      createdAt:daysFrom(TODAY,-ri(20,80)), updatedAt:daysFrom(TODAY,-ri(0,15)), region:ini.region, _overdue:overdue});
+    ini.linkedDecisionIds.push(did);
+  });
+
+  // actions (~30)
+  for(let a=0;a<30;a++){
+    const aid=`ACT-${String(a+1).padStart(3,'0')}`;
+    const src= pick(['Risk','Decision','Milestone','Dependency','Meeting']);
+    const due= daysFrom(TODAY, ri(-20,40));
+    const overdue = new Date(due)<TODAY;
+    const status= overdue? pick(['Open','In progress','Overdue']): pick(['Open','In progress','Complete','Open']);
+    actions.push({actionId:aid, sourceType:src, sourceId: initiatives[a%18].initiativeId, title:`${pick(['Confirm','Escalate','Validate','Draft','Review','Agree'])} ${pick(['mitigation plan','budget re-forecast','vendor terms','data mapping','resource plan','benefit baseline'])}`,
+      description:'Follow-up action.', owner:pick(PEOPLE), raisedDate:daysFrom(TODAY,-ri(5,40)), dueDate:due, priority:pick(['High','Medium','Low','High']),
+      status: status==='Complete'?'Complete': overdue?'Overdue':status, completionDate: status==='Complete'? daysFrom(TODAY,-ri(0,10)):null,
+      overdueDays: overdue? Math.round((TODAY-new Date(due))/864e5):0, escalationLevel: overdue&&rnd()>0.6?'Sponsor':'None', evidenceLink:'#', comments:'', region:initiatives[a%18].region});
+    initiatives[a%18].linkedActionIds.push(aid);
+  }
+
+  // agendas (4)
+  const AG=[
+    ['Monthly executive steering committee','Monthly executive steering committee','A. Fischer'],
+    ['Asia-Pacific portfolio review','Regional portfolio review','L. Nakamura'],
+    ['Financial-crime control uplift — deep dive','Initiative deep dive','M. Al-Rashid'],
+    ['Budget and resource review — Q3','Budget and resource review','F. Costa'],
+  ];
+  AG.forEach((g,i)=>{
+    const aid=`AGD-${i+1}`;
+    agendas.push({agendaId:aid, title:g[0], meetingDate:daysFrom(TODAY, ri(2,25)), meetingType:g[1], chairperson:g[2],
+      participants:[pick(PEOPLE),pick(PEOPLE),pick(PEOPLE),pick(PEOPLE)], reportingPeriod:'2026-09',
+      objectives:['Resolve overdue decisions','Review critical risks','Confirm benefit trajectory'],
+      agendaItems:[], preReadLinks:['Portfolio pack','Decision log'], decisionsExpected:ri(2,5),
+      generatedFromFilters:false, status:pick(['Draft','Ready','Draft']), minutes:'', nextMeetingDate:daysFrom(TODAY,35), durationMinutes:60});
+  });
+
+  // narratives (3 periods)
+  PERIODS.forEach(p=>{
+    narratives.push({narrativeId:'NAR-'+p, reportingPeriod:p, portfolioId:'PF-001', executiveSummary:'', bullets:[], generatedAt:null, editedBy:null, approvedBy:null, sourceEntityIds:[]});
+  });
+
+  // audit sample
+  audit.push({entity:'INI-003', field:'overallStatus', prev:'On track', next:'Critical', by:'System', ts:daysFrom(TODAY,-3)+'T09:12', reason:'Critical milestone >30 days late'});
+  audit.push({entity:'DEC-001', field:'decisionStatus', prev:'Draft', next:'Ready for decision', by:'A. Fischer', ts:daysFrom(TODAY,-2)+'T14:40', reason:'Evidence complete'});
+
+  const portfolio = {
+    portfolioId:'PF-001', name:'Global Wealth Management transformation portfolio',
+    description:'Enterprise strategic-initiative portfolio for the wealth-management franchise.',
+    executiveOwner:'A. Fischer', reportingCurrency:'USD', reportingPeriod:'2026-09',
+    strategicThemes:PILLARS, targetBenefits:0, aggregateBudget:0, aggregateHeadcount:0, lastUpdated:iso(TODAY), dataQualityScore:0
+  };
+
+  SCC.seed = { portfolio, initiatives, milestones, risks, dependencies, actions, decisions, benefits, agendas, narratives, audit,
+    meta:{ REGIONS, PILLARS, SEGMENTS, TYPES, BENEFIT_TYPES, PEOPLE, FORUMS, PERIODS } };
+})();
+
+</script>
+<script>
+/* ============================================================
+   scc.app.js — Calculations, state, components, pages, exports.
+   Business logic lives here, not inside visual markup.
+   ============================================================ */
+(function(){
+const S = window.SCC.seed;
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const el = (t,c,h)=>{const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e;};
+const TODAY = new Date('2026-09-13');
+const fmtMoney=(n,cur='USD')=>{ if(n==null||isNaN(n))return '—'; const abs=Math.abs(n); let v,s; if(abs>=1e9){v=(n/1e9);s='B';} else if(abs>=1e6){v=(n/1e6);s='M';} else if(abs>=1e3){v=(n/1e3);s='K';} else {v=n;s='';} return (cur==='USD'?'$':'')+ (Math.abs(v)>=100? v.toFixed(0): v.toFixed(1)).replace(/\.0$/,'')+s; };
+const fmtNum=n=> n==null?'—': n.toLocaleString('en-US');
+const pct=n=> (n==null||isNaN(n))?'—': Math.round(n)+'%';
+const daysBetween=(a,b)=> Math.round((new Date(b)-new Date(a))/864e5);
+const fmtDate=d=> d? new Date(d).toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+/* -------- STATE (Zustand-like tiny store) -------- */
+const STORE_KEY='scc.state.v1';
+let state = {
+  page:'home', role:'Group Chief of Staff',
+  filters:{ period:'2026-09', region:'All', country:'All', bu:'All', segment:'All', pillar:'All', type:'All', sponsor:'All', owner:'All', status:'All', decisionState:'All', riskSeverity:'All', benefitType:'All' },
+  mode:'light',
+  weights:{ priority:{stratAlign:25,benefit:20,client:15,reg:10,exec:10,time:10,enable:10}, risk:{schedule:20,budget:20,resource:20,dependency:20,benefit:20} },
+  confFactor:{High:0.90,Medium:0.65,Low:0.35},
+  data:JSON.parse(JSON.stringify({initiatives:S.initiatives, milestones:S.milestones, risks:S.risks, dependencies:S.dependencies, actions:S.actions, decisions:S.decisions, benefits:S.benefits, agendas:S.agendas, narratives:S.narratives, audit:S.audit}))
+};
+function persist(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify({filters:state.filters,mode:state.mode,role:state.role,weights:state.weights,confFactor:state.confFactor,data:state.data})); }catch(e){} }
+function restore(){ try{ const s=JSON.parse(localStorage.getItem(STORE_KEY)); if(s){ Object.assign(state.filters,s.filters||{}); state.mode=s.mode||'light'; state.role=s.role||state.role; if(s.weights)state.weights=s.weights; if(s.confFactor)state.confFactor=s.confFactor; if(s.data)state.data=s.data; } }catch(e){} }
+function resetSeed(){ localStorage.removeItem(STORE_KEY); state.data=JSON.parse(JSON.stringify({initiatives:S.initiatives, milestones:S.milestones, risks:S.risks, dependencies:S.dependencies, actions:S.actions, decisions:S.decisions, benefits:S.benefits, agendas:S.agendas, narratives:S.narratives, audit:S.audit})); toast('Reset to seeded demonstration data'); render(); }
+
+/* -------- CALCULATIONS (separate module) -------- */
+const CALC = {
+  msFor:(id)=> state.data.milestones.filter(m=>m.initiativeId===id),
+  risksFor:(id)=> state.data.risks.filter(r=>r.initiativeId===id),
+  depsFor:(id)=> state.data.dependencies.filter(d=>d.sourceInitiativeId===id||d.targetInitiativeId===id),
+  decsFor:(id)=> state.data.decisions.filter(d=>d.requestingInitiativeId===id),
+  actsFor:(id)=> state.data.actions.filter(a=>a.sourceId===id),
+  bensFor:(id)=> state.data.benefits.filter(b=>b.initiativeId===id),
+  budgetVar:(i)=> i.approvedBudget? (i.forecastBudget-i.approvedBudget)/i.approvedBudget : 0,
+  headCover:(i)=> i.requiredHeadcount? i.assignedHeadcount/i.requiredHeadcount : 1,
+  benefitCover:(i)=> i.benefitTarget? i.benefitForecast/i.benefitTarget : 1,
+  worstMilestoneSlip:(id)=>{ const ms=CALC.msFor(id).filter(m=>m.status!=='Complete'); return ms.length? Math.max(...ms.map(m=>m._slip||0)) : 0; },
+  overdueDecision:(id)=>{ const ds=CALC.decsFor(id); let worst=0; ds.forEach(d=>{ if(!['Approved','Rejected','Conditional approval','Closed','Superseded'].includes(d.decisionStatus)){ const dd=daysBetween(d.requiredByDate,TODAY); if(dd>worst)worst=dd; } }); return worst; },
+  calcStatus:(i)=>{
+    const slip=CALC.worstMilestoneSlip(i.initiativeId), bv=CALC.budgetVar(i), hc=CALC.headCover(i), bc=CALC.benefitCover(i);
+    const critRisk=CALC.risksFor(i.initiativeId).some(r=>r.residualScore>=16 && r.status!=='Closed');
+    const overdueDec=CALC.overdueDecision(i.initiativeId);
+    const depOverdue=CALC.depsFor(i.initiativeId).some(d=>d.status==='Overdue'&&d.criticality!=='Medium');
+    const allComplete=CALC.msFor(i.initiativeId).every(m=>m.status==='Complete') && i.completionPercentage>=100;
+    const reasons=[];
+    if(allComplete) return {status:'Complete', reasons:['All mandatory milestones complete']};
+    if(i.statusOverride && i.statusOverride.status==='On hold') return {status:'On hold', reasons:['Owner placed initiative on hold']};
+    // Critical
+    if(slip>30){reasons.push(`Critical milestone ${slip} days late`);}
+    if(critRisk){reasons.push('Unmitigated critical risk (residual ≥ 16)');}
+    if(bv>0.15){reasons.push(`Budget forecast ${Math.round(bv*100)}% over approved (>15%)`);}
+    if(hc<0.60){reasons.push(`Headcount coverage ${Math.round(hc*100)}% (<60%)`);}
+    if(overdueDec>14){reasons.push(`Leadership decision overdue by ${overdueDec} days (>14)`);}
+    if(reasons.length) return {status:'Critical', reasons};
+    // At risk
+    if(slip>=15&&slip<=30){reasons.push(`Critical milestone ${slip} days late (15–30)`);}
+    if(bv>0.08&&bv<=0.15){reasons.push(`Budget forecast ${Math.round(bv*100)}% over approved (8–15%)`);}
+    if(hc>=0.60&&hc<0.75){reasons.push(`Headcount coverage ${Math.round(hc*100)}% (60–75%)`);}
+    if(depOverdue){reasons.push('High-severity cross-initiative dependency overdue');}
+    if(bc<0.70){reasons.push(`Benefit forecast ${Math.round(bc*100)}% of target (<70%)`);}
+    if(reasons.length) return {status:'At risk', reasons};
+    // Attention
+    if(slip>=1&&slip<=14){reasons.push(`Milestone ${slip} days late (1–14)`);}
+    if(bv>0.03&&bv<=0.08){reasons.push(`Budget forecast ${Math.round(bv*100)}% over approved (3–8%)`);}
+    if(hc>=0.75&&hc<0.90){reasons.push(`Headcount coverage ${Math.round(hc*100)}% (75–90%)`);}
+    if(overdueDec<=0 && CALC.decsFor(i.initiativeId).some(d=>{const dd=daysBetween(TODAY,d.requiredByDate); return dd>=0&&dd<=7 && !['Approved','Rejected','Conditional approval'].includes(d.decisionStatus);})){reasons.push('Leadership decision due within 7 days');}
+    if(reasons.length) return {status:'Attention required', reasons};
+    if(i.completionPercentage<=1) return {status:'Not started', reasons:['No progress recorded']};
+    return {status:'On track', reasons:['No material threshold breach; budget, schedule and resources within tolerance']};
+  },
+  effectiveStatus:(i)=>{ if(i.statusOverride && i.statusOverride.status){ return {status:i.statusOverride.status, calc:CALC.calcStatus(i), overridden:true, override:i.statusOverride}; } const c=CALC.calcStatus(i); return {status:c.status, calc:c, overridden:false}; },
+  priority:(i)=>{ const w=state.weights.priority; const parts={ 'Strategic alignment':[i._stratAlign,w.stratAlign], 'Expected benefit':[Math.min(100,Math.round(CALC.benefitCover(i)*100)),w.benefit], 'Client / market impact':[i._clientImpact,w.client], 'Regulatory urgency':[i._regUrg,w.reg], 'Executive commitment':[i._execCommit,w.exec], 'Time criticality':[i._timeCrit,w.time], 'Cross-portfolio enablement':[i._enable,w.enable] };
+    let tot=0,wsum=0; Object.values(parts).forEach(([v,ww])=>{tot+=v*ww;wsum+=ww;}); return {score:Math.round(tot/wsum), parts}; },
+  deliveryRisk:(i)=>{ const w=state.risk||state.weights.risk; const slip=CALC.worstMilestoneSlip(i.initiativeId); const sched=Math.min(100,Math.max(0,slip*2)); const bud=Math.min(100,Math.max(0,CALC.budgetVar(i)*400)); const res=Math.min(100,Math.max(0,(1-CALC.headCover(i))*160)); const depO=CALC.depsFor(i.initiativeId).filter(d=>d.status==='Overdue').length; const dep=Math.min(100,depO*35); const ben=Math.min(100,Math.max(0,(1-CALC.benefitCover(i))*140)); const parts={'Schedule risk':[Math.round(sched),20],'Budget risk':[Math.round(bud),20],'Resource risk':[Math.round(res),20],'Dependency risk':[Math.round(dep),20],'Benefit uncertainty':[Math.round(ben),20]}; let tot=0; Object.values(parts).forEach(([v,ww])=>tot+=v*ww); return {score:Math.round(tot/100), parts}; },
+  dataQuality:(i)=>{ let score=100; const ded=[]; const req=['executiveSponsor','initiativeOwner','approvedBudget','benefitTarget']; req.forEach(f=>{ if(!i[f]){score-=5;ded.push('Missing '+f);} });
+    const stale=daysBetween(i.lastUpdateDate,TODAY)>30; if(stale){score-=20;ded.push('Update stale (>30 days)');}
+    if(!CALC.bensFor(i.initiativeId).some(b=>b.baselineDate)){score-=10;ded.push('Missing benefit baseline');}
+    if(!CALC.bensFor(i.initiativeId).some(b=>b.financeValidated)){score-=10;ded.push('No finance-validated benefit');}
+    if(CALC.msFor(i.initiativeId).length<2){score-=15;ded.push('Milestone coverage incomplete');}
+    if(CALC.risksFor(i.initiativeId).length===0){score-=10;ded.push('No risks recorded');}
+    if(CALC.risksFor(i.initiativeId).some(r=>!r.mitigationOwner)){score-=5;ded.push('Risk without mitigation owner');}
+    return {score:Math.max(0,score), ded}; },
+  quadrant:(i)=>{ const p=CALC.priority(i).score, r=CALC.deliveryRisk(i).score; if(p>=50&&r<50)return 'Protect and accelerate'; if(p>=50&&r>=50)return 'Govern closely'; if(p<50&&r<50)return 'Selective investment'; return 'Reconsider or stop'; },
+  confAdjBenefit:(b)=>{ const cf=state.confFactor[b.confidence]||0.65; return b.realizedValue + b.forecastValue*cf; }
+};
+
+/* -------- FILTERS -------- */
+function filtered(){
+  const f=state.filters;
+  return state.data.initiatives.filter(i=>{
+    if(f.region!=='All' && i.region!==f.region) return false;
+    if(f.country!=='All' && !(i.countries||[]).includes(f.country)) return false;
+    if(f.bu!=='All' && i.businessUnit!==f.bu) return false;
+    if(f.segment!=='All' && i.clientSegment!==f.segment) return false;
+    if(f.pillar!=='All' && i.strategicPillar!==f.pillar) return false;
+    if(f.type!=='All' && i.initiativeType!==f.type) return false;
+    if(f.sponsor!=='All' && i.executiveSponsor!==f.sponsor) return false;
+    if(f.owner!=='All' && i.initiativeOwner!==f.owner) return false;
+    if(f.status!=='All' && CALC.effectiveStatus(i).status!==f.status) return false;
+    if(f.benefitType!=='All' && i.benefitType!==f.benefitType) return false;
+    return true;
+  });
+}
+const filteredIds=()=> new Set(filtered().map(i=>i.initiativeId));
+
+/* -------- UI HELPERS -------- */
+const STATUS_CLASS={'On track':'s-ontrack','Attention required':'s-attention','At risk':'s-risk','Critical':'s-critical','Complete':'s-complete','Not started':'s-notstarted','On hold':'s-hold'};
+function statusBadge(st){ return `<span class="badge-status ${STATUS_CLASS[st]||'s-notstarted'}"><span class="sd"></span>${st}</span>`; }
+function confBadge(c){ return `<span class="conf ${(c||'').toLowerCase()}">${c||'—'} confidence</span>`; }
+function progressBar(p,color){ const c=color|| (p>=75?'var(--green)':p>=45?'var(--amber)':'var(--red)'); return `<div class="bar"><i style="width:${Math.max(2,Math.min(100,p))}%;background:${c}"></i></div>`; }
+function trace(label,html){ return `<span class="trace" data-tip="${encodeURIComponent(html)}">${label}</span>`; }
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* tooltip engine */
+document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-tip]'); if(t){ const tip=$('#tip'); tip.innerHTML=decodeURIComponent(t.dataset.tip); tip.classList.add('show'); const r=t.getBoundingClientRect(); let x=r.left, y=r.bottom+8; if(x+330>innerWidth)x=innerWidth-340; if(y+120>innerHeight)y=r.top-8-tip.offsetHeight; tip.style.left=x+'px'; tip.style.top=y+'px'; } });
+document.addEventListener('mouseout',e=>{ if(e.target.closest('[data-tip]')) $('#tip').classList.remove('show'); });
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const NAV=[
+  ['home','Executive home','◑'],['portfolio','Portfolio dashboard','▦'],['scorecards','Initiative scorecards','◫'],
+  ['risk','Risk & dependency register','⚠'],['narrative','Steering narrative','✎'],['agenda','Meeting agenda','☷'],
+  ['decisions','Decision log','⚖'],['benefits','Benefits realization','◎'],['resource','Resource & budget','▤'],
+  ['quality','Data quality & governance','✔'],['settings','Settings','⚙']
+];
+function renderNav(){
+  const n=$('#sideNav'); n.innerHTML='';
+  n.appendChild(el('div','sectlabel','Command'));
+  NAV.forEach(([id,label,icon])=>{
+    const it=el('div','navitem'+(state.page===id?' active':''));
+    let badge='';
+    if(id==='decisions'){ const c=state.data.decisions.filter(d=>d._overdue).length; if(c)badge=`<span class="badge">${c}</span>`; }
+    if(id==='risk'){ const c=state.data.risks.filter(r=>r.residualScore>=16).length; if(c)badge=`<span class="badge">${c}</span>`; }
+    it.innerHTML=`<span class="ni">${icon}</span>${label}${badge}`;
+    it.onclick=()=>{ state.page=id; $('#sideNav').classList.remove('open'); render(); };
+    n.appendChild(it);
+    if(id==='quality'){ n.appendChild(el('div','sectlabel','System')); }
+  });
+}
+
+/* ============================================================
+   GLOBAL FILTER BAR
+   ============================================================ */
+function renderFilters(){
+  const bar=$('#filterBar'); bar.innerHTML='';
+  const opts=(label,key,vals)=>{ const s=el('select'); s.innerHTML=`<option value="All">${label}: All</option>`+vals.map(v=>`<option ${state.filters[key]===v?'selected':''}>${v}</option>`).join(''); s.onchange=()=>{ state.filters[key]=s.value; persist(); render(); }; if(state.filters[key]!=='All') s.value=state.filters[key]; return s; };
+  const m=S.meta;
+  bar.appendChild(opts('Region','region',m.REGIONS));
+  bar.appendChild(opts('Pillar','pillar',m.PILLARS));
+  bar.appendChild(opts('Segment','segment',m.SEGMENTS));
+  bar.appendChild(opts('Type','type',m.TYPES));
+  bar.appendChild(opts('Sponsor','sponsor',[...new Set(state.data.initiatives.map(i=>i.executiveSponsor))].sort()));
+  bar.appendChild(opts('Owner','owner',[...new Set(state.data.initiatives.map(i=>i.initiativeOwner))].sort()));
+  bar.appendChild(opts('Status','status',['On track','Attention required','At risk','Critical','Complete','On hold','Not started']));
+  bar.appendChild(opts('Benefit','benefitType',m.BENEFIT_TYPES));
+  // chips
+  const active=Object.entries(state.filters).filter(([k,v])=>v!=='All' && k!=='period');
+  active.forEach(([k,v])=>{ const c=el('span','chip',`<b>${k}</b> ${v} <span class="x">✕</span>`); c.querySelector('.x').onclick=()=>{ state.filters[k]='All'; persist(); render(); }; bar.appendChild(c); });
+  if(active.length){ const ca=el('span','clearall','Clear all'); ca.onclick=()=>{ Object.keys(state.filters).forEach(k=>{ if(k!=='period')state.filters[k]='All'; }); persist(); render(); }; bar.appendChild(ca); }
+}
+
+/* ============================================================
+   PAGES
+   ============================================================ */
+const PAGES={};
+
+/* ---- Executive home ---- */
+PAGES.home=()=>{
+  const inits=filtered();
+  const withStatus=inits.map(i=>({i,st:CALC.effectiveStatus(i).status}));
+  const count=s=>withStatus.filter(x=>x.st===s).length;
+  const atRisk=count('At risk')+count('Critical');
+  const decOpen=state.data.decisions.filter(d=>!['Approved','Rejected','Conditional approval','Closed','Superseded'].includes(d.decisionStatus) && inFilter(d.requestingInitiativeId)).length;
+  const decBlocking=state.data.decisions.filter(d=>d._overdue && inFilter(d.requestingInitiativeId)).length;
+  const budgetAtRisk=inits.filter(i=>CALC.budgetVar(i)>0.08).reduce((a,i)=>a+(i.forecastBudget-i.approvedBudget),0);
+  const benefitYTD=inits.reduce((a,i)=>a+i.benefitRealized,0);
+  const hcGap=inits.reduce((a,i)=>a+Math.max(0,i.requiredHeadcount-i.assignedHeadcount),0);
+  const critDeps=state.data.dependencies.filter(d=>d.criticality==='Critical'&&d.status==='Overdue').length;
+
+  const root=el('div','page');
+  root.innerHTML=`<div class="flex between wrap"><div><h1 class="pt">Good morning, ${state.role.split(' ').slice(-1)[0]==='Staff'?'Chief of Staff':state.role}.</h1>
+    <p class="sub">${decBlocking} decision${decBlocking===1?'':'s'} ${decBlocking===1?'is':'are'} blocking material outcomes this month across ${inits.length} active initiatives.</p></div>
+    <span class="demo-flag">⚑ Fictional demonstration data</span></div>`;
+
+  // KPI strip
+  const kg=el('div','grid g4');
+  const kpis=[
+    ['Active initiatives',inits.length,''],
+    ['On track',count('On track'),`${pct(count('On track')/inits.length*100)} of portfolio`],
+    ['At risk / critical',atRisk,'require intervention'],
+    ['Decisions awaiting leadership',decOpen,`${decBlocking} overdue`],
+    ['Budget at risk',fmtMoney(budgetAtRisk),'forecast over approved'],
+    ['Benefits realized YTD',fmtMoney(benefitYTD),'finance-tracked'],
+    ['Headcount gap',hcGap,'FTE unfilled'],
+    ['Critical dependencies overdue',critDeps,'cross-portfolio']
+  ];
+  kpis.forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val ${String(k[1]).length>5?'small':''}">${k[1]}</div><div class="meta">${k[2]}</div>`; kg.appendChild(c); });
+  root.appendChild(kg);
+
+  // What changed
+  root.appendChild(el('div','section-h','What changed since last month?'));
+  const changes=[
+    ['Global client master-data foundation moved green → critical','On track','Critical','Discovery milestone slipped 34 days beyond baseline','Three dependent initiatives lose their data feed','Escalate to Technology Board this week','INI-003'],
+    ['Cloud & platform simplification moved green → critical','On track','Critical','Budget forecast now 22% over approved','Cost programme benefit case at risk','Decide budget uplift or descope','INI-014'],
+    ['APAC advisor workstation decision became overdue','Due 11 Sep','Overdue 2d','Data-residency decision not taken','Pilot moves outside regulatory window','Group ExCo decision required','DEC-002'],
+    ['Sustainable-investing benefit forecast increased','$18M','$24M','Additional UHNW demand confirmed','Stronger revenue-growth case','Recognize and protect funding','INI-015'],
+  ];
+  const cg=el('div','grid g2');
+  changes.forEach(c=>{ const card=el('div','card story-card');
+    card.innerHTML=`<b>${c[0]}</b><div class="grid g2" style="margin:10px 0;gap:6px">
+      <div class="mini">Previous</div><div class="mini">Current</div>
+      <div><span class="tag">${c[1]}</span></div><div><span class="tag" style="background:rgba(234,67,53,.14)">${c[2]}</span></div></div>
+      <div class="mini"><b>Why:</b> ${c[3]}</div><div class="mini"><b>Implication:</b> ${c[4]}</div>
+      <div class="mini" style="color:var(--decision-blue)"><b>Response:</b> ${c[5]}</div>
+      <div style="margin-top:8px"><a class="pill" style="cursor:pointer" data-open="${c[6]}">Open source record ↗</a></div>`;
+    cg.appendChild(card); });
+  root.appendChild(cg);
+
+  // Leadership attention
+  root.appendChild(el('div','section-h','Leadership attention'));
+  const groups={'Decide now':[],'Intervene':[],'Monitor':[],'Recognize':[]};
+  state.data.decisions.filter(d=>d._overdue&&inFilter(d.requestingInitiativeId)).slice(0,4).forEach(d=>groups['Decide now'].push(`${d.title} — ${initTitle(d.requestingInitiativeId)}`));
+  withStatus.filter(x=>x.st==='Critical').slice(0,4).forEach(x=>groups['Intervene'].push(`${x.i.shortTitle} — ${CALC.calcStatus(x.i).reasons[0]}`));
+  withStatus.filter(x=>x.st==='Attention required').slice(0,4).forEach(x=>groups['Monitor'].push(`${x.i.shortTitle} — ${CALC.calcStatus(x.i).reasons[0]}`));
+  inits.filter(i=>CALC.benefitCover(i)>=0.95 && CALC.effectiveStatus(i).status==='On track').slice(0,4).forEach(i=>groups['Recognize'].push(`${i.shortTitle} — benefit forecast on / ahead of target`));
+  const lg=el('div','grid g4');
+  const gcolor={'Decide now':'var(--decision-blue)','Intervene':'var(--red)','Monitor':'var(--amber)','Recognize':'var(--green)'};
+  Object.entries(groups).forEach(([k,v])=>{ const c=el('div','card'); c.innerHTML=`<div class="attnhead" style="color:${gcolor[k]}">${k}</div>`+ (v.length? v.map(t=>`<div class="mini" style="padding:5px 0;border-bottom:1px solid var(--border)">${t}</div>`).join('') : '<div class="mini muted">Nothing right now</div>'); lg.appendChild(c); });
+  root.appendChild(lg);
+
+  // Portfolio narrative
+  root.appendChild(el('div','section-h','Portfolio narrative'));
+  const nc=el('div','card');
+  nc.innerHTML=`<div class="demo-flag" style="margin-bottom:10px">Draft generated from portfolio data. Review before executive use.</div>${genPortfolioNarrative(inits)}`;
+  root.appendChild(nc);
+
+  // Regional pulse
+  root.appendChild(el('div','section-h','Regional pulse'));
+  const rg=el('div','grid g4');
+  ['Europe','Asia-Pacific','Middle East and Africa','Americas','Global'].forEach(rn=>{
+    const ri=inits.filter(i=>i.region===rn); if(!ri.length)return;
+    const dist={}; ri.forEach(i=>{const s=CALC.effectiveStatus(i).status; dist[s]=(dist[s]||0)+1;});
+    const bud=ri.reduce((a,i)=>a+i.approvedBudget,0), ben=ri.reduce((a,i)=>a+i.benefitForecast,0);
+    const crit=ri.reduce((a,i)=>a+CALC.risksFor(i.initiativeId).filter(r=>r.residualScore>=16).length,0);
+    const dec=state.data.decisions.filter(d=>d.region===rn&&!['Approved','Rejected','Conditional approval'].includes(d.decisionStatus)).length;
+    const gap=ri.reduce((a,i)=>a+Math.max(0,i.requiredHeadcount-i.assignedHeadcount),0);
+    const c=el('div','card'); c.innerHTML=`<b>${rn}</b><div class="mini" style="margin:6px 0">${ri.length} initiatives</div>
+      <div class="flex" style="gap:4px;margin-bottom:8px">${Object.entries(dist).map(([s,n])=>`<span title="${s}" style="flex:${n};height:8px;border-radius:4px;background:${statusColor(s)}"></span>`).join('')}</div>
+      <div class="mini">Budget ${fmtMoney(bud)} · Benefit fc ${fmtMoney(ben)}</div>
+      <div class="mini">Critical risks ${crit} · Decisions ${dec}</div><div class="mini">Headcount gap ${gap} FTE</div>`;
+    rg.appendChild(c);
+  });
+  root.appendChild(rg);
+
+  // Decision calendar
+  root.appendChild(el('div','section-h','Upcoming decision calendar'));
+  const dcg=el('div','grid g3');
+  [[30,'Next 30 days'],[60,'31–60 days'],[90,'61–90 days']].forEach(([d,lbl],ix)=>{
+    const lo=ix===0?0:[30,60][ix-1], hi=d;
+    const ds=state.data.decisions.filter(x=>{const dd=daysBetween(TODAY,x.requiredByDate); return dd>=lo&&dd<hi && inFilter(x.requestingInitiativeId);});
+    const c=el('div','card'); c.innerHTML=`<div class="attnhead">${lbl} — ${ds.length}</div>`+ (ds.length? ds.map(x=>`<div class="mini" style="padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer" data-open="${x.decisionId}">${fmtDate(x.requiredByDate)} · ${x.title}</div>`).join(''):'<div class="mini muted">No decisions due</div>');
+    dcg.appendChild(c);
+  });
+  root.appendChild(dcg);
+  return root;
+};
+
+/* ---- Portfolio dashboard ---- */
+PAGES.portfolio=()=>{
+  const inits=filtered();
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Portfolio dashboard</h1><p class="sub">${inits.length} initiatives in scope · reporting period ${state.filters.period}</p>`;
+  // hero
+  const tot={ approved:0,forecast:0,actual:0,bTarget:0,bReal:0,req:0,ass:0 };
+  inits.forEach(i=>{tot.approved+=i.approvedBudget;tot.forecast+=i.forecastBudget;tot.actual+=i.actualSpend;tot.bTarget+=i.benefitTarget;tot.bReal+=i.benefitRealized;tot.req+=i.requiredHeadcount;tot.ass+=i.assignedHeadcount;});
+  const openDec=state.data.decisions.filter(d=>d.urgency==='Critical'&&inFilter(d.requestingInitiativeId)).length;
+  const hero=el('div','grid g4');
+  [['Portfolio status', portfolioStatus(inits),''],['Total approved budget',fmtMoney(tot.approved),''],['Forecast budget',fmtMoney(tot.forecast),(tot.forecast>tot.approved?'▲ ':'▼ ')+fmtMoney(Math.abs(tot.forecast-tot.approved))+' vs approved'],['Actual spend',fmtMoney(tot.actual),pct(tot.actual/tot.forecast*100)+' of forecast'],['Expected benefit',fmtMoney(tot.bTarget),''],['Benefit realized',fmtMoney(tot.bReal),pct(tot.bReal/tot.bTarget*100)+' of target'],['Headcount',tot.ass+' / '+tot.req,(tot.req-tot.ass)+' gap'],['Open critical decisions',openDec,'']].forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val small">${k[1]}</div><div class="meta">${k[2]}</div>`; hero.appendChild(c); });
+  root.appendChild(hero);
+
+  // story ribbon
+  const ribbon=el('div','card'); ribbon.style.marginTop='14px';
+  ribbon.innerHTML=`<div class="demo-flag" style="margin-bottom:8px">Draft generated from portfolio data. Review before executive use.</div><div style="font-size:14px">${genRibbon(inits)}</div>`;
+  root.appendChild(ribbon);
+
+  // table
+  root.appendChild(el('div','section-h','Initiative portfolio'));
+  root.appendChild(initiativeTable(inits));
+
+  // matrix
+  root.appendChild(el('div','section-h','Strategic priority vs delivery risk'));
+  root.appendChild(bubbleMatrix(inits));
+
+  // roadmap
+  root.appendChild(el('div','section-h','Initiative roadmap'));
+  root.appendChild(roadmap(inits));
+
+  // flow
+  root.appendChild(el('div','section-h','Portfolio flow — pillar → initiatives → region'));
+  root.appendChild(flowView(inits));
+
+  // budget & headcount
+  root.appendChild(el('div','section-h','Budget & headcount'));
+  root.appendChild(budgetHeadcount(inits));
+
+  // scenario
+  root.appendChild(el('div','section-h','Scenario controls'));
+  root.appendChild(scenarioPanel(inits));
+  return root;
+};
+
+/* ---- Scorecards ---- */
+PAGES.scorecards=()=>{
+  const inits=filtered();
+  const root=el('div','page');
+  root.innerHTML=`<div class="flex between wrap"><div><h1 class="pt">Initiative scorecards</h1><p class="sub">${inits.length} initiatives · click any card for the full scorecard</p></div>
+   <div class="flex"><button class="btn ghost" id="viewCards">Cards</button><button class="btn ghost" id="viewTable">Table</button></div></div>`;
+  const holder=el('div'); holder.id='scHolder';
+  const renderCards=()=>{ holder.innerHTML=''; const g=el('div','grid g3');
+    inits.forEach(i=>{ const st=CALC.effectiveStatus(i).status, pr=CALC.priority(i).score, dr=CALC.deliveryRisk(i).score;
+      const nm=CALC.msFor(i.initiativeId).find(m=>m.status!=='Complete');
+      const dec=CALC.decsFor(i.initiativeId).find(d=>!['Approved','Rejected'].includes(d.decisionStatus));
+      const c=el('div','card node'); c.style.cursor='pointer';
+      c.innerHTML=`<div class="flex between"><b>${i.shortTitle}</b>${statusBadge(st)}</div>
+        <div class="mini muted" style="margin:4px 0">${i.strategicPillar} · ${i.region}</div>
+        <div class="mini">Sponsor ${i.executiveSponsor} · Owner ${i.initiativeOwner}</div>
+        <div class="flex" style="gap:14px;margin:10px 0"><div><div class="mini">Priority</div><b>${pr}</b></div><div><div class="mini">Delivery risk</div><b>${dr}</b></div><div><div class="mini">Complete</div><b>${i.completionPercentage}%</b></div></div>
+        ${progressBar(i.completionPercentage)}
+        <div class="mini" style="margin-top:8px">Next milestone: ${nm?nm.title+' · '+fmtDate(nm.forecastDate):'—'}</div>
+        <div class="mini">${dec?'<span class="pill" style="background:rgba(10,102,194,.14);color:var(--decision-blue)">Decision required</span>':''} Benefit fc ${fmtMoney(i.benefitForecast)}</div>
+        <div class="mini muted" style="margin-top:6px">Updated ${fmtDate(i.lastUpdateDate)}</div>`;
+      c.onclick=()=>openInitiative(i.initiativeId); g.appendChild(c); });
+    holder.appendChild(g); };
+  const renderTbl=()=>{ holder.innerHTML=''; holder.appendChild(initiativeTable(inits)); };
+  root.appendChild(holder);
+  setTimeout(()=>{ $('#viewCards').onclick=renderCards; $('#viewTable').onclick=renderTbl; },0);
+  renderCards();
+  return root;
+};
+
+/* ---- Risk & dependency ---- */
+PAGES.risk=()=>{
+  const ids=filteredIds();
+  const risks=state.data.risks.filter(r=>ids.has(r.initiativeId));
+  const deps=state.data.dependencies.filter(d=>ids.has(d.sourceInitiativeId)||ids.has(d.targetInitiativeId));
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Risk & dependency register</h1><p class="sub">${risks.length} risks · ${deps.length} dependencies in scope</p>`;
+  const sg=el('div','grid g4');
+  [['Critical risks',risks.filter(r=>r.residualScore>=16).length],['High risks',risks.filter(r=>r.residualScore>=10&&r.residualScore<16).length],['Risks increasing',risks.filter(r=>r.trend==='Increasing').length],['Overdue mitigations',risks.filter(r=>new Date(r.mitigationDueDate)<TODAY&&r.status!=='Closed').length],['Critical dependencies',deps.filter(d=>d.criticality==='Critical').length],['Overdue dependencies',deps.filter(d=>d.status==='Overdue').length],['Initiatives affected',new Set([...risks.map(r=>r.initiativeId),...deps.map(d=>d.sourceInitiativeId)]).size],['Decisions linked to risk',state.data.decisions.filter(d=>risks.some(r=>r.linkedDecisionId===d.decisionId)).length]].forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val">${k[1]}</div>`; sg.appendChild(c); });
+  root.appendChild(sg);
+
+  // heat map
+  root.appendChild(el('div','section-h','Risk heat map (residual probability × impact)'));
+  root.appendChild(riskHeat(risks));
+
+  // risk table
+  root.appendChild(el('div','section-h','Risk register'));
+  root.appendChild(riskTable(risks));
+
+  // dependency table
+  root.appendChild(el('div','section-h','Dependency register'));
+  root.appendChild(depTable(deps));
+
+  // network
+  root.appendChild(el('div','section-h','Dependency network'));
+  root.appendChild(depNetwork(deps));
+
+  // concentration
+  root.appendChild(el('div','section-h','Concentration analysis'));
+  root.appendChild(concentration(risks,deps));
+  return root;
+};
+
+/* ---- Narrative ---- */
+PAGES.narrative=()=>{
+  const inits=filtered();
+  const root=el('div','page');
+  root.innerHTML=`<div class="flex between wrap"><div><h1 class="pt">Monthly executive steering narrative</h1><p class="sub">Deterministic, source-linked draft for period ${state.filters.period}</p></div>
+    <div class="flex"><button class="btn" id="genNar">Generate draft</button><button class="btn ghost" id="expPptx">Export outline</button></div></div>`;
+  const quality=el('div','card'); quality.style.marginTop='6px';
+  const updated=inits.filter(i=>daysBetween(i.lastUpdateDate,TODAY)<=30).length;
+  const unsupported=0;
+  quality.innerHTML=`<b>Narrative quality</b><div class="grid g4" style="margin-top:10px">
+    ${['Data completeness',pct(inits.reduce((a,i)=>a+CALC.dataQuality(i).score,0)/inits.length),'Initiatives updated',pct(updated/inits.length*100),'Unsupported statements','0','Overdue updates',String(inits.length-updated)].reduce((h,v,ix,arr)=> ix%2===0? h+`<div><div class="mini">${v}</div><b>${arr[ix+1]}</b></div>`:h,'')}
+  </div>`;
+  root.appendChild(quality);
+  const holder=el('div'); holder.id='narHolder'; holder.style.marginTop='14px';
+  root.appendChild(holder);
+  const draw=()=>{
+    holder.innerHTML='';
+    holder.appendChild(el('div','demo-flag','Draft generated from portfolio data. Review before executive use.'));
+    const sections=genNarrativeSections(inits);
+    sections.forEach(sec=>{
+      const c=el('div','card'); c.style.marginTop='10px';
+      c.innerHTML=`<b>${sec.title}</b>`;
+      sec.bullets.forEach((b,ix)=>{
+        const row=el('div'); row.style.cssText='padding:8px 0;border-bottom:1px solid var(--border)';
+        row.innerHTML=`<div class="flex" style="align-items:flex-start;gap:8px"><input type="checkbox" checked>
+          <div style="flex:1"><div contenteditable="true" style="outline:none">${b.text}</div>
+          <div class="mini muted" style="margin-top:4px">Source: ${b.sources.join(', ')} · Period ${state.filters.period} · ${confBadge(b.conf)} <span class="pill" style="background:rgba(52,168,83,.14);color:#177a34">Awaiting validation</span></div></div></div>`;
+        c.appendChild(row);
+      });
+      holder.appendChild(c);
+    });
+  };
+  setTimeout(()=>{ $('#genNar').onclick=()=>{draw();toast('Narrative draft generated');}; $('#expPptx').onclick=()=>exportNarrativeOutline(inits); },0);
+  draw();
+  return root;
+};
+
+/* ---- Agenda ---- */
+PAGES.agenda=()=>{
+  const root=el('div','page');
+  root.innerHTML=`<div class="flex between wrap"><div><h1 class="pt">Meeting agenda</h1><p class="sub">Build executive agendas from live portfolio data</p></div>
+    <button class="btn" id="genAgenda">Generate suggested agenda</button></div>`;
+  const g=el('div','grid g2'); g.style.marginTop='10px';
+  // list of agendas
+  const left=el('div','card'); left.innerHTML='<b>Agendas</b>';
+  state.data.agendas.forEach(a=>{ const r=el('div'); r.style.cssText='padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer'; r.innerHTML=`${a.title}<div class="mini muted">${a.meetingType} · ${fmtDate(a.meetingDate)} · chair ${a.chairperson} · <span class="tag">${a.status}</span></div>`; r.onclick=()=>openAgenda(a.agendaId); left.appendChild(r); });
+  g.appendChild(left);
+  // builder preview of first
+  const right=el('div','card'); right.id='agendaBuild';
+  g.appendChild(right);
+  root.appendChild(g);
+  setTimeout(()=>{ $('#genAgenda').onclick=()=>{ const a=state.data.agendas[0]; a.agendaItems=suggestAgenda(); a.generatedFromFilters=true; renderAgendaBuilder(a); toast('Suggested agenda generated'); }; renderAgendaBuilder(state.data.agendas[0]); },0);
+  return root;
+};
+
+/* ---- Decisions ---- */
+PAGES.decisions=()=>{
+  const decs=state.data.decisions.filter(d=>inFilter(d.requestingInitiativeId));
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Decision log</h1><p class="sub">${decs.length} decisions · permanent auditable record</p>`;
+  const open=decs.filter(d=>!['Approved','Rejected','Conditional approval','Closed','Superseded'].includes(d.decisionStatus));
+  const sg=el('div','grid g4');
+  [['Awaiting leadership',open.length],['Due this month',decs.filter(d=>{const dd=daysBetween(TODAY,d.requiredByDate);return dd>=0&&dd<=30;}).length],['Overdue',decs.filter(d=>d._overdue).length],['Made this month',decs.filter(d=>d.decisionDate&&daysBetween(d.decisionDate,TODAY)<=30).length],['Under review',decs.filter(d=>d.decisionStatus==='Under review').length],['Unrealized benefit',decs.filter(d=>d.finalDecision&&d.benefitRealized<1000000).length],['Avg days to decision',Math.round(decs.filter(d=>d.decisionDate).reduce((a,d)=>a+Math.abs(daysBetween(d.createdAt,d.decisionDate)),0)/Math.max(1,decs.filter(d=>d.decisionDate).length))],['Delay exposure',fmtMoney(open.reduce((a,d)=>a+d.estimatedFinancialImpact,0))]].forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val">${k[1]}</div>`; sg.appendChild(c); });
+  root.appendChild(sg);
+
+  root.appendChild(el('div','section-h','Decision aging'));
+  root.appendChild(decisionAging(decs));
+
+  root.appendChild(el('div','section-h','Decision register'));
+  const tbl=el('div','card');
+  tbl.innerHTML=`<div class="tablewrap"><table class="grid-t"><thead><tr>${['Decision','Initiative','Region','Owner','Forum','Required','Status','Recommended','Financial impact','Review'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${decs.map(d=>`<tr data-open="${d.decisionId}">
+    <td><b>${d.title}</b></td><td class="mini">${initShort(d.requestingInitiativeId)}</td><td class="mini">${d.region}</td><td class="mini">${d.decisionOwner}</td><td class="mini">${d.decisionForum}</td>
+    <td class="tnum ${d._overdue?'':''}" style="${d._overdue?'color:var(--red);font-weight:600':''}">${fmtDate(d.requiredByDate)}</td><td>${decStatusBadge(d.decisionStatus)}</td>
+    <td class="mini">${d.options.find(o=>o.optionId===d.recommendedOptionId)?.title||'—'}</td><td class="tnum">${fmtMoney(d.estimatedFinancialImpact)}</td><td class="mini">${fmtDate(d.reviewDate)}</td></tr>`).join('')}</tbody></table></div>`;
+  root.appendChild(tbl);
+  return root;
+};
+
+/* ---- Benefits ---- */
+PAGES.benefits=()=>{
+  const ids=filteredIds();
+  const bens=state.data.benefits.filter(b=>ids.has(b.initiativeId));
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Benefits realization</h1><p class="sub">${bens.length} benefit records · target vs forecast vs realized</p>`;
+  const T=bens.reduce((a,b)=>a+b.targetValue,0), F=bens.reduce((a,b)=>a+b.forecastValue,0), R=bens.reduce((a,b)=>a+b.realizedValue,0);
+  const V=bens.filter(b=>b.financeValidated).reduce((a,b)=>a+b.realizedValue,0);
+  const CA=bens.reduce((a,b)=>a+CALC.confAdjBenefit(b),0);
+  const atRisk=bens.filter(b=>b.confidence==='Low').reduce((a,b)=>a+b.forecastValue,0);
+  const delayed=state.data.decisions.filter(d=>d._overdue).length;
+  const sg=el('div','grid g4');
+  [['Total benefit target',fmtMoney(T)],['Forecast benefit',fmtMoney(F)],['Realized benefit',fmtMoney(R)],['Finance-validated',fmtMoney(V)],['Benefit at risk',fmtMoney(atRisk)],['Confidence-adjusted',fmtMoney(CA)],['Benefits delayed by decisions',delayed+' initiatives'],['Realization rate',pct(R/T*100)]].forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val small">${k[1]}</div>`; sg.appendChild(c); });
+  root.appendChild(sg);
+
+  root.appendChild(el('div','section-h','Benefits bridge — target → forecast → realized'));
+  root.appendChild(benefitsBridge(T,F,R,V));
+
+  root.appendChild(el('div','section-h','Benefits by type'));
+  const byType={}; bens.forEach(b=>{byType[b.benefitType]=(byType[b.benefitType]||{t:0,f:0,r:0}); byType[b.benefitType].t+=b.targetValue; byType[b.benefitType].f+=b.forecastValue; byType[b.benefitType].r+=b.realizedValue;});
+  const bt=el('div','card');
+  bt.innerHTML=`<div class="tablewrap"><table class="grid-t"><thead><tr><th>Benefit type</th><th>Target</th><th>Forecast</th><th>Realized</th><th>Realization</th></tr></thead><tbody>${Object.entries(byType).map(([k,v])=>`<tr><td>${k}</td><td class="tnum">${fmtMoney(v.t)}</td><td class="tnum">${fmtMoney(v.f)}</td><td class="tnum">${fmtMoney(v.r)}</td><td>${progressBar(v.r/v.t*100)}</td></tr>`).join('')}</tbody></table></div>`;
+  root.appendChild(bt);
+
+  root.appendChild(el('div','section-h','Benefit records'));
+  const rt=el('div','card');
+  rt.innerHTML=`<div class="tablewrap"><table class="grid-t"><thead><tr>${['Benefit','Initiative','Type','Target','Forecast','Realized','Confidence','Finance validated','Conf-adjusted'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${bens.map(b=>`<tr data-open="${b.initiativeId}"><td>${b.title}</td><td class="mini">${initShort(b.initiativeId)}</td><td class="mini">${b.benefitType}</td><td class="tnum">${fmtMoney(b.targetValue)}</td><td class="tnum">${fmtMoney(b.forecastValue)}</td><td class="tnum">${fmtMoney(b.realizedValue)}</td><td>${confBadge(b.confidence)}</td><td>${b.financeValidated?'✔':'—'}</td><td class="tnum">${trace(fmtMoney(CALC.confAdjBenefit(b)),`<b>Confidence-adjusted benefit</b><br>Realized ${fmtMoney(b.realizedValue)} + Forecast ${fmtMoney(b.forecastValue)} × ${state.confFactor[b.confidence]} (${b.confidence})`)}</td></tr>`).join('')}</tbody></table></div>`;
+  root.appendChild(rt);
+  return root;
+};
+
+/* ---- Resource & budget ---- */
+PAGES.resource=()=>{
+  const inits=filtered();
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Resource & budget view</h1><p class="sub">Integrated investment and capacity</p>`;
+  const tot={a:0,f:0,ac:0,req:0,ass:0,cont:0}; inits.forEach(i=>{tot.a+=i.approvedBudget;tot.f+=i.forecastBudget;tot.ac+=i.actualSpend;tot.req+=i.requiredHeadcount;tot.ass+=i.assignedHeadcount;tot.cont+=i.contingencyBudget;});
+  const atRisk=inits.filter(i=>CALC.budgetVar(i)>0.08).reduce((a,i)=>a+(i.forecastBudget-i.approvedBudget),0);
+  const sg=el('div','grid g4');
+  [['Approved',fmtMoney(tot.a)],['Forecast',fmtMoney(tot.f)],['Actual',fmtMoney(tot.ac)],['Remaining',fmtMoney(tot.f-tot.ac)],['Variance',fmtMoney(tot.f-tot.a)],['Contingency',fmtMoney(tot.cont)],['Budget at risk',fmtMoney(atRisk)],['Headcount gap',(tot.req-tot.ass)+' FTE']].forEach(k=>{ const c=el('div','card kpi'); c.innerHTML=`<div class="lbl">${k[0]}</div><div class="val small">${k[1]}</div>`; sg.appendChild(c); });
+  root.appendChild(sg);
+
+  root.appendChild(el('div','section-h','Approved vs forecast vs actual (by initiative)'));
+  root.appendChild(budgetBars(inits));
+
+  root.appendChild(el('div','section-h','Headcount — required vs assigned'));
+  root.appendChild(headcountBars(inits));
+
+  root.appendChild(el('div','section-h','Resource conflict detector'));
+  root.appendChild(resourceConflicts(inits));
+  return root;
+};
+
+/* ---- Data quality ---- */
+PAGES.quality=()=>{
+  const inits=filtered();
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Data quality & governance</h1><p class="sub">Control view for Chief of Staff and PMO</p>`;
+  const checks=[
+    ['Initiatives not updated (>30d)',inits.filter(i=>daysBetween(i.lastUpdateDate,TODAY)>30)],
+    ['Missing sponsors',inits.filter(i=>!i.executiveSponsor)],
+    ['Missing owners',inits.filter(i=>!i.initiativeOwner)],
+    ['Missing benefit baselines',inits.filter(i=>!CALC.bensFor(i.initiativeId).some(b=>b.baselineDate))],
+    ['Unvalidated financial benefits',inits.filter(i=>!CALC.bensFor(i.initiativeId).some(b=>b.financeValidated))],
+    ['Risks without mitigation owners',inits.filter(i=>CALC.risksFor(i.initiativeId).some(r=>!r.mitigationOwner))],
+    ['Manual status overrides',inits.filter(i=>i.statusOverride)],
+  ];
+  const sg=el('div','grid g4');
+  checks.forEach(c=>{ const card=el('div','card kpi'); card.innerHTML=`<div class="lbl">${c[0]}</div><div class="val">${c[1].length}</div>`; sg.appendChild(card); });
+  root.appendChild(sg);
+  root.appendChild(el('div','section-h','Data quality score by initiative'));
+  const t=el('div','card');
+  t.innerHTML=`<div class="tablewrap"><table class="grid-t"><thead><tr><th>Initiative</th><th>Region</th><th>Score</th><th>Deductions</th></tr></thead><tbody>${inits.sort((a,b)=>CALC.dataQuality(a).score-CALC.dataQuality(b).score).map(i=>{const q=CALC.dataQuality(i);return `<tr data-open="${i.initiativeId}"><td><b>${i.shortTitle}</b></td><td class="mini">${i.region}</td><td>${trace(`<span style="font-weight:700;color:${q.score>=80?'var(--green)':q.score>=60?'var(--amber)':'var(--red)'}">${q.score}</span>`,'<b>Data quality</b><br>20% completeness + 20% freshness + 20% benefit traceability + 15% milestones + 15% risk/dependency + 10% decision traceability')}</td><td class="mini">${q.ded.join('; ')||'None'}</td></tr>`;}).join('')}</tbody></table></div>`;
+  root.appendChild(t);
+  return root;
+};
+
+/* ---- Settings ---- */
+PAGES.settings=()=>{
+  const root=el('div','page');
+  root.innerHTML=`<h1 class="pt">Settings</h1><p class="sub">Role, scoring weights, confidence factors, data</p>`;
+  const g=el('div','grid g2');
+  // role
+  const rc=el('div','card');
+  rc.innerHTML=`<b>Role-based experience</b><label class="f">Active role</label>`;
+  const rs=el('select','f'); ['Group Chief of Staff','Regional Chief of Staff','Executive Sponsor','Initiative Owner','Finance Partner','Workforce / HR Partner','PMO / Transformation Office','Executive Steering Committee Member'].forEach(r=>{const o=el('option');o.textContent=r;if(r===state.role)o.selected=true;rs.appendChild(o);});
+  rs.onchange=()=>{state.role=rs.value;$('#userRole').textContent=rs.value;persist();toast('Role set to '+rs.value);};
+  rc.appendChild(rs);
+  g.appendChild(rc);
+  // priority weights
+  const pw=el('div','card'); pw.innerHTML='<b>Priority score weights (%)</b>';
+  const wmap={stratAlign:'Strategic alignment',benefit:'Expected benefit',client:'Client impact',reg:'Regulatory urgency',exec:'Executive commitment',time:'Time criticality',enable:'Cross-portfolio enablement'};
+  Object.entries(wmap).forEach(([k,lbl])=>{ const wrap=el('div'); wrap.innerHTML=`<label class="f">${lbl}</label>`; const inp=el('input','f'); inp.type='number'; inp.value=state.weights.priority[k]; inp.onchange=()=>{state.weights.priority[k]=+inp.value;persist();toast('Weights updated');}; wrap.appendChild(inp); pw.appendChild(wrap); });
+  g.appendChild(pw);
+  // confidence
+  const cf=el('div','card'); cf.innerHTML='<b>Benefit confidence factors</b>';
+  Object.keys(state.confFactor).forEach(k=>{ const wrap=el('div'); wrap.innerHTML=`<label class="f">${k}</label>`; const inp=el('input','f'); inp.type='number'; inp.step='0.05'; inp.value=state.confFactor[k]; inp.onchange=()=>{state.confFactor[k]=+inp.value;persist();toast('Confidence factor updated');}; wrap.appendChild(inp); cf.appendChild(wrap); });
+  g.appendChild(cf);
+  // data
+  const dc=el('div','card'); dc.innerHTML='<b>Data & persistence</b><p class="mini muted">Prototype persists to LocalStorage. Seeded values are fictional demonstration data.</p>';
+  const b1=el('button','btn ghost','Reset to seeded data'); b1.onclick=resetSeed; b1.style.marginRight='8px';
+  const b2=el('button','btn ghost','Export JSON backup'); b2.onclick=exportJSON;
+  dc.appendChild(b1); dc.appendChild(b2);
+  g.appendChild(dc);
+  root.appendChild(g);
+  return root;
+};
+
+/* ============================================================
+   SHARED COMPONENTS
+   ============================================================ */
+function initiativeTable(inits){
+  const card=el('div','card');
+  const rows=inits.map(i=>{ const es=CALC.effectiveStatus(i); const pr=CALC.priority(i); const dr=CALC.deliveryRisk(i); const nm=CALC.msFor(i.initiativeId).find(m=>m.status!=='Complete'); const dec=CALC.decsFor(i.initiativeId).some(d=>!['Approved','Rejected'].includes(d.decisionStatus)); const bv=CALC.budgetVar(i);
+    return `<tr data-open="${i.initiativeId}">
+      <td><b>${i.shortTitle}</b><div class="mini muted">${i.region}</div></td>
+      <td class="mini">${i.strategicPillar}</td>
+      <td class="mini">${i.executiveSponsor}</td>
+      <td class="mini">${i.initiativeOwner}</td>
+      <td>${trace(`<b>${pr.score}</b>`,priorityTip(pr))}</td>
+      <td>${statusBadge(es.status)}${es.overridden?' <span class="pill">override</span>':''}</td>
+      <td>${statusDot(CALC.worstMilestoneSlip(i.initiativeId)>0?'late':'ok')}</td>
+      <td>${statusDot(bv>0.08?'bad':bv>0.03?'warn':'ok')} <span class="mini">${(bv*100).toFixed(0)}%</span></td>
+      <td>${statusDot(CALC.headCover(i)<0.75?'bad':CALC.headCover(i)<0.9?'warn':'ok')}</td>
+      <td>${statusDot(CALC.depsFor(i.initiativeId).some(d=>d.status==='Overdue')?'bad':'ok')}</td>
+      <td class="tnum">${fmtMoney(i.benefitForecast)}</td>
+      <td class="mini">${nm?nm.title:'—'}</td>
+      <td>${dec?'<span class="pill" style="background:rgba(10,102,194,.14);color:var(--decision-blue)">Yes</span>':'—'}</td>
+      <td class="mini">${fmtDate(i.lastUpdateDate)}</td></tr>`;
+  }).join('');
+  card.innerHTML=`<div class="flex between" style="margin-bottom:8px"><div class="mini muted">${inits.length} initiatives</div><button class="btn ghost" data-export="portfolio">⭳ Export CSV</button></div>
+    <div class="tablewrap"><table class="grid-t"><thead><tr>${['Initiative','Pillar','Sponsor','Owner','Priority','Status','Sch','Budget','Res','Dep','Benefit fc','Next milestone','Decision','Updated'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return card;
+}
+function statusDot(k){ const c={ok:'var(--green)',warn:'var(--amber)',bad:'var(--red)',late:'var(--amber)'}[k]||'var(--ink2)'; return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c}"></span>`; }
+function priorityTip(pr){ return `<b>Priority score ${pr.score}</b><br>`+Object.entries(pr.parts).map(([k,[v,w]])=>`${k}: ${v} × ${w}%`).join('<br>'); }
+
+function bubbleMatrix(inits){
+  const c=el('div','card'); const W=760,H=420,pad=50;
+  const quad=['Selective investment','Protect and accelerate','Reconsider or stop','Govern closely'];
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+    <rect x="${pad}" y="${pad}" width="${W-pad*2}" height="${H-pad*2}" fill="none" stroke="var(--border)"/>
+    <line x1="${W/2}" y1="${pad}" x2="${W/2}" y2="${H-pad}" stroke="var(--border)" stroke-dasharray="4"/>
+    <line x1="${pad}" y1="${H/2}" x2="${W-pad}" y2="${H/2}" stroke="var(--border)" stroke-dasharray="4"/>
+    <text x="${(pad+W/2)/2}" y="${pad-14}" fill="var(--ink2)" font-size="11" text-anchor="middle">Protect & accelerate</text>
+    <text x="${(W/2+W-pad)/2}" y="${pad-14}" fill="var(--ink2)" font-size="11" text-anchor="middle">Govern closely</text>
+    <text x="${(pad+W/2)/2}" y="${H-pad+22}" fill="var(--ink2)" font-size="11" text-anchor="middle">Selective investment</text>
+    <text x="${(W/2+W-pad)/2}" y="${H-pad+22}" fill="var(--ink2)" font-size="11" text-anchor="middle">Reconsider or stop</text>
+    <text x="${W/2}" y="${H-12}" fill="var(--ink2)" font-size="11" text-anchor="middle">Delivery risk →</text>
+    <text x="16" y="${H/2}" fill="var(--ink2)" font-size="11" text-anchor="middle" transform="rotate(-90 16 ${H/2})">Strategic priority →</text>`;
+  const maxB=Math.max(...inits.map(i=>i.approvedBudget));
+  inits.forEach(i=>{ const dr=CALC.deliveryRisk(i).score, pr=CALC.priority(i).score; const x=pad+(dr/100)*(W-pad*2); const y=(H-pad)-(pr/100)*(H-pad*2); const r=8+ (i.approvedBudget/maxB)*22; const col=statusColor(CALC.effectiveStatus(i).status);
+    svg+=`<circle class="node" data-open="${i.initiativeId}" cx="${x}" cy="${y}" r="${r}" fill="${col}" fill-opacity="0.55" stroke="${col}" style="cursor:pointer"><title>${i.shortTitle} — priority ${pr}, risk ${dr}, budget ${fmtMoney(i.approvedBudget)}</title></circle>`; });
+  svg+='</svg>';
+  c.innerHTML=svg+`<div class="legend" style="margin-top:8px">${['On track','Attention required','At risk','Critical'].map(s=>`<span><i style="background:${statusColor(s)}"></i>${s}</span>`).join('')} · bubble size = approved budget</div>`;
+  return c;
+}
+function statusColor(s){ return {'On track':'var(--green)','Attention required':'var(--amber)','At risk':'var(--red)','Critical':'var(--red)','Complete':'var(--decision-blue)','On hold':'var(--ink2)','Not started':'var(--ink2)'}[s]||'var(--ink2)'; }
+
+function roadmap(inits){
+  const c=el('div','card'); const minD=new Date(Math.min(...inits.map(i=>new Date(i.startDate)))); const maxD=new Date(Math.max(...inits.map(i=>new Date(i.targetEndDate)))); const span=daysBetween(minD,maxD)||1;
+  let html='<div class="tablewrap" style="max-height:420px">';
+  inits.slice(0,14).forEach(i=>{ const l=daysBetween(minD,i.startDate)/span*100; const w=daysBetween(i.startDate,i.targetEndDate)/span*100; const col=statusColor(CALC.effectiveStatus(i).status);
+    const ms=CALC.msFor(i.initiativeId).map(m=>{const p=daysBetween(minD,m.forecastDate)/span*100; return `<span title="${m.title}" style="position:absolute;left:${p}%;top:-3px;width:10px;height:10px;border-radius:2px;transform:rotate(45deg);background:${m.decisionGate?'var(--decision-blue)':'var(--ink)'}"></span>`;}).join('');
+    html+=`<div class="flex" style="margin:6px 0" data-open="${i.initiativeId}" style="cursor:pointer"><div class="mini" style="width:180px;flex:none">${i.shortTitle}</div><div style="position:relative;flex:1;height:14px;background:rgba(95,99,104,.08);border-radius:6px"><div style="position:absolute;left:${l}%;width:${w}%;height:14px;border-radius:6px;background:${col};opacity:.6"></div>${ms}</div></div>`; });
+  html+='</div><div class="legend" style="margin-top:8px"><span><i style="background:var(--ink);transform:rotate(45deg)"></i>Milestone</span><span><i style="background:var(--decision-blue);transform:rotate(45deg)"></i>Decision gate</span></div>';
+  c.innerHTML=html; return c;
+}
+
+function flowView(inits){
+  const c=el('div','card'); const pillars=[...new Set(inits.map(i=>i.strategicPillar))]; const regions=[...new Set(inits.map(i=>i.region))];
+  const W=760,H=Math.max(320,inits.length*16);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`;
+  const py=(ix)=> (ix+1)/(pillars.length+1)*H; const ry=(ix)=>(ix+1)/(regions.length+1)*H; const iy=(ix)=>(ix+1)/(inits.length+1)*H;
+  inits.forEach((i,ix)=>{ const pi=pillars.indexOf(i.strategicPillar), ri=regions.indexOf(i.region); const col=statusColor(CALC.effectiveStatus(i).status);
+    svg+=`<path d="M120 ${py(pi)} C 300 ${py(pi)}, 300 ${iy(ix)}, 380 ${iy(ix)}" stroke="${col}" stroke-opacity=".3" fill="none"/>`;
+    svg+=`<path d="M380 ${iy(ix)} C 500 ${iy(ix)}, 560 ${ry(ri)}, 640 ${ry(ri)}" stroke="${col}" stroke-opacity=".3" fill="none"/>`;
+    svg+=`<circle class="node" data-open="${i.initiativeId}" cx="380" cy="${iy(ix)}" r="4" fill="${col}" style="cursor:pointer"><title>${i.shortTitle}</title></circle>`; });
+  pillars.forEach((p,ix)=> svg+=`<text x="10" y="${py(ix)}" font-size="11" fill="var(--ink)">${p}</text>`);
+  regions.forEach((r,ix)=> svg+=`<text x="648" y="${ry(ix)}" font-size="11" fill="var(--ink)">${r}</text>`);
+  svg+='</svg>'; c.innerHTML=svg; return c;
+}
+
+function budgetHeadcount(inits){
+  const g=el('div','grid g2');
+  const b=el('div','card'); b.innerHTML='<b>Benefit-to-cost & budget at risk</b>';
+  const btc=inits.reduce((a,i)=>a+i.benefitForecast,0)/Math.max(1,inits.reduce((a,i)=>a+i.forecastBudget,0));
+  b.innerHTML+=`<div class="grid g2" style="margin-top:10px"><div><div class="mini">Benefit-to-cost ratio</div><div class="val" style="font-size:22px;font-weight:700">${btc.toFixed(2)}×</div></div><div><div class="mini">Cost per benefit unit</div><div class="val" style="font-size:22px;font-weight:700">${(1/btc).toFixed(2)}</div></div></div>`;
+  g.appendChild(b);
+  const h=el('div','card'); h.innerHTML='<b>Headcount gap by specialist skill</b>';
+  const skills={}; inits.forEach(i=>{ (i.specialistSkillsRequired||[]).forEach(s=>{ skills[s]=(skills[s]||0)+Math.max(0,i.requiredHeadcount-i.assignedHeadcount); }); });
+  h.innerHTML+='<div style="margin-top:8px">'+Object.entries(skills).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s,n])=>`<div class="flex" style="margin:5px 0"><div class="mini" style="width:140px">${s}</div><div style="flex:1">${progressBar(Math.min(100,n),'var(--purple)')}</div><b class="mini">${n} FTE</b></div>`).join('')+'</div>';
+  g.appendChild(h);
+  return g;
+}
+
+function scenarioPanel(inits){
+  const c=el('div','card');
+  c.innerHTML=`<div class="demo-flag" style="margin-bottom:10px">Illustrative scenario. Not committed.</div>
+   <div class="grid g3">
+    <div><label class="f">Delay a decision by 30 days</label><select class="f" id="scDelay"><option value="0">None</option>${state.data.decisions.slice(0,6).map(d=>`<option value="${d.decisionId}">${d.title}</option>`).join('')}</select></div>
+    <div><label class="f">Reduce budget by 10%</label><select class="f" id="scBudget"><option value="0">None</option><option value="1">All in-scope initiatives</option></select></div>
+    <div><label class="f">Remove headcount</label><input class="f" id="scHc" type="number" value="0" min="0" max="50"/></div>
+   </div>
+   <div id="scOut" style="margin-top:12px"></div>`;
+  setTimeout(()=>{ const upd=()=>{ let benefit=inits.reduce((a,i)=>a+i.benefitForecast,0); let atRisk=inits.filter(i=>CALC.effectiveStatus(i).status==='At risk'||CALC.effectiveStatus(i).status==='Critical').length; let msg=[];
+    if($('#scDelay').value!=='0'){ benefit*=0.94; atRisk+=1; msg.push('A 30-day decision delay defers ~6% of forecast benefit and moves one more initiative to at-risk.'); }
+    if($('#scBudget').value==='1'){ atRisk+=2; msg.push('A 10% budget reduction pushes two additional initiatives into intervention territory.'); }
+    const hc=+$('#scHc').value; if(hc>0){ atRisk+=Math.ceil(hc/5); msg.push(`Removing ${hc} FTE widens the headcount gap and endangers ${Math.ceil(hc/5)} more milestones.`); }
+    $('#scOut').innerHTML=`<div class="grid g3"><div class="card kpi"><div class="lbl">Indicative benefit</div><div class="val small">${fmtMoney(benefit)}</div></div><div class="card kpi"><div class="lbl">Initiatives at risk</div><div class="val">${atRisk}</div></div><div class="card kpi"><div class="lbl">Scenario notes</div><div class="mini">${msg.join(' ')||'No scenario applied.'}</div></div></div>`; };
+    ['scDelay','scBudget','scHc'].forEach(id=>$('#'+id).onchange=upd); upd(); },0);
+  return c;
+}
+
+function riskHeat(risks){
+  const c=el('div','card'); const grid={}; risks.forEach(r=>{ const k=r.residualProbability+'-'+r.residualImpact; grid[k]=(grid[k]||0)+1; });
+  let html='<table style="border-collapse:separate;border-spacing:4px"><tr><td></td>'+[1,2,3,4,5].map(i=>`<td class="mini" style="text-align:center">${i}</td>`).join('')+'</tr>';
+  for(let p=5;p>=1;p--){ html+=`<tr><td class="mini">${p}</td>`; for(let i=1;i<=5;i++){ const n=grid[p+'-'+i]||0; const sc=p*i; const col= sc>=16?'var(--red)':sc>=10?'var(--amber)':sc>=5?'#7bbf6a':'var(--green)'; html+=`<td class="heat" style="background:${col}">${n||''}</td>`; } html+='</tr>'; }
+  html+='</table>';
+  c.innerHTML=`<div class="flex between"><div class="mini muted">Y = probability · X = impact (residual)</div></div><div style="margin-top:8px">${html}</div>`;
+  return c;
+}
+function riskTable(risks){
+  const c=el('div','card');
+  c.innerHTML=`<div class="flex between" style="margin-bottom:8px"><div class="mini muted">${risks.length} risks</div><button class="btn ghost" data-export="risk">⭳ Export CSV</button></div>
+   <div class="tablewrap"><table class="grid-t"><thead><tr>${['Risk','Initiative','Category','Prob','Impact','Inherent','Residual','Trend','Mitigation owner','Due','Exec','Action'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${risks.sort((a,b)=>b.residualScore-a.residualScore).map(r=>`<tr>
+    <td><b>${r.title}</b></td><td class="mini">${initShort(r.initiativeId)}</td><td class="mini">${r.category}</td><td class="tnum">${r.probability}</td><td class="tnum">${r.impact}</td><td class="tnum">${r.inherentScore}</td>
+    <td class="tnum"><span style="color:${r.residualScore>=16?'var(--red)':r.residualScore>=10?'var(--amber)':'var(--green)'};font-weight:700">${r.residualScore}</span></td>
+    <td class="mini">${r.trend==='Increasing'?'▲':r.trend==='Decreasing'?'▼':'▬'} ${r.trend}</td><td class="mini">${r.mitigationOwner}</td><td class="mini ${new Date(r.mitigationDueDate)<TODAY?'':''}" style="${new Date(r.mitigationDueDate)<TODAY?'color:var(--red)':''}">${fmtDate(r.mitigationDueDate)}</td>
+    <td>${r.executiveAttentionRequired?'⚑':''}</td><td><button class="btn ghost mini" data-convert="${r.riskId}" style="padding:3px 7px">→ Decision</button></td></tr>`).join('')}</tbody></table></div>`;
+  return c;
+}
+function depTable(deps){
+  const c=el('div','card');
+  c.innerHTML=`<div class="tablewrap"><table class="grid-t"><thead><tr>${['Dependency','Source','Target','Type','Owner','Required','Committed','Status','P(delay)','Delay days','Financial','Escalation'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${deps.map(d=>`<tr>
+    <td><b>${d.title}</b></td><td class="mini">${initShort(d.sourceInitiativeId)}</td><td class="mini">${initShort(d.targetInitiativeId)}</td><td class="mini">${d.dependencyType}</td><td class="mini">${d.dependencyOwner}</td>
+    <td class="mini">${fmtDate(d.requiredByDate)}</td><td class="mini" style="${d.status==='Overdue'?'color:var(--red)':''}">${fmtDate(d.committedDate)}</td><td>${d.status==='Overdue'?statusBadge('Critical').replace('Critical',d.status):`<span class="tag">${d.status}</span>`}</td>
+    <td class="tnum">${d.probabilityOfDelay}%</td><td class="tnum">${d.delayImpactDays}</td><td class="tnum">${fmtMoney(d.financialImpact)}</td><td class="mini">${d.escalationState}</td></tr>`).join('')}</tbody></table></div>`;
+  return c;
+}
+function depNetwork(deps){
+  const c=el('div','card'); const nodes=[...new Set([...deps.map(d=>d.sourceInitiativeId),...deps.map(d=>d.targetInitiativeId)])];
+  const W=760,H=420, cx=W/2, cy=H/2, R=160;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">`;
+  const pos={}; nodes.forEach((n,ix)=>{ const a=ix/nodes.length*Math.PI*2; pos[n]=[cx+Math.cos(a)*R, cy+Math.sin(a)*R]; });
+  deps.forEach(d=>{ const s=pos[d.sourceInitiativeId], t=pos[d.targetInitiativeId]; if(!s||!t)return; const col=d.status==='Overdue'?'var(--red)':d.status==='At risk'?'var(--amber)':'var(--purple)'; const w=d.criticality==='Critical'?2.5:d.criticality==='High'?1.6:1; svg+=`<line x1="${s[0]}" y1="${s[1]}" x2="${t[0]}" y2="${t[1]}" stroke="${col}" stroke-opacity=".5" stroke-width="${w}"/>`; });
+  nodes.forEach(n=>{ const cnt=deps.filter(d=>d.sourceInitiativeId===n||d.targetInitiativeId===n).length; const hot=cnt>3; svg+=`<circle class="node" data-open="${n}" cx="${pos[n][0]}" cy="${pos[n][1]}" r="${hot?9:6}" fill="${hot?'var(--red)':'var(--blue)'}" style="cursor:pointer"><title>${initShort(n)} — ${cnt} dependencies</title></circle><text x="${pos[n][0]}" y="${pos[n][1]-11}" font-size="9" fill="var(--ink2)" text-anchor="middle">${initShort(n)}</text>`; });
+  svg+='</svg>';
+  c.innerHTML=svg+'<div class="legend" style="margin-top:8px"><span><i style="background:var(--red)"></i>Overdue / hotspot (>3 deps)</span><span><i style="background:var(--purple)"></i>Dependency edge</span></div>';
+  return c;
+}
+function concentration(risks,deps){
+  const g=el('div','grid g2');
+  const owners={}; deps.forEach(d=>owners[d.dependencyOwner]=(owners[d.dependencyOwner]||0)+1);
+  const heavy={}; deps.forEach(d=>heavy[d.sourceInitiativeId]=(heavy[d.sourceInitiativeId]||0)+1);
+  const c1=el('div','card'); c1.innerHTML='<b>Most dependency-heavy initiatives</b>'+Object.entries(heavy).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="flex" style="margin:5px 0"><div class="mini" style="width:180px">${initShort(k)}</div><div style="flex:1">${progressBar(v*15,'var(--red)')}</div><b class="mini">${v}</b></div>`).join('');
+  const c2=el('div','card'); c2.innerHTML='<b>Most common dependency owners</b>'+Object.entries(owners).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="flex" style="margin:5px 0"><div class="mini" style="width:180px">${k}</div><div style="flex:1">${progressBar(v*20,'var(--purple)')}</div><b class="mini">${v}</b></div>`).join('');
+  g.appendChild(c1); g.appendChild(c2);
+  return g;
+}
+function decisionAging(decs){
+  const c=el('div','card'); const buckets={'0–7 days':0,'8–14 days':0,'15–30 days':0,'>30 days overdue':0};
+  decs.forEach(d=>{ if(['Approved','Rejected','Conditional approval','Closed','Superseded'].includes(d.decisionStatus))return; const dd=daysBetween(d.requiredByDate,TODAY); if(dd<=0){const to=daysBetween(TODAY,d.requiredByDate); if(to<=7)buckets['0–7 days']++;} else if(dd<=14)buckets['8–14 days']++; else if(dd<=30)buckets['15–30 days']++; else buckets['>30 days overdue']++; });
+  const max=Math.max(1,...Object.values(buckets));
+  c.innerHTML='<div class="flex" style="gap:20px;align-items:flex-end;height:160px">'+Object.entries(buckets).map(([k,v],ix)=>`<div style="flex:1;text-align:center"><div style="height:${v/max*120}px;background:${['var(--green)','var(--amber)','#ff8c42','var(--red)'][ix]};border-radius:6px 6px 0 0"></div><div class="mini" style="margin-top:6px">${k}</div><b>${v}</b></div>`).join('')+'</div>';
+  return c;
+}
+function benefitsBridge(T,F,R,V){
+  const c=el('div','card');
+  const steps=[['Target',T,'var(--ink2)'],['Scope/delay adj.',-(T-F),'var(--amber)'],['Forecast',F,'var(--blue)'],['Delivery variance',-(F-R),'var(--amber)'],['Realized',R,'var(--green)'],['Finance validated',V,'var(--decision-blue)']];
+  const max=T; let html='<div class="flex" style="gap:16px;align-items:flex-end;height:200px">';
+  steps.forEach(([lbl,val,col])=>{ const h=Math.abs(val)/max*150; html+=`<div style="flex:1;text-align:center"><div style="height:${h}px;background:${col};border-radius:6px 6px 0 0;opacity:.75"></div><div class="mini" style="margin-top:6px">${lbl}</div><b class="tnum">${fmtMoney(Math.abs(val))}</b></div>`; });
+  html+='</div><div class="legend" style="margin-top:8px"><span class="mini muted">Distinguishes target, forecast, realized and finance-validated. Forecast is not presented as realized.</span></div>';
+  c.innerHTML=html; return c;
+}
+function budgetBars(inits){
+  const c=el('div','card'); const max=Math.max(...inits.map(i=>Math.max(i.approvedBudget,i.forecastBudget)));
+  c.innerHTML='<div class="tablewrap" style="max-height:440px">'+inits.map(i=>`<div style="margin:8px 0"><div class="flex between"><div class="mini">${i.shortTitle}</div><div class="mini">A ${fmtMoney(i.approvedBudget)} · F ${fmtMoney(i.forecastBudget)} · Ac ${fmtMoney(i.actualSpend)}</div></div>
+    <div style="position:relative;height:16px;background:rgba(95,99,104,.08);border-radius:5px;margin-top:3px">
+     <div style="position:absolute;height:16px;width:${i.approvedBudget/max*100}%;background:rgba(66,133,244,.25);border-radius:5px"></div>
+     <div style="position:absolute;height:16px;width:${i.forecastBudget/max*100}%;border:1.5px solid ${i.forecastBudget>i.approvedBudget?'var(--red)':'var(--green)'};border-radius:5px"></div>
+     <div style="position:absolute;height:16px;width:${i.actualSpend/max*100}%;background:var(--decision-blue);opacity:.55;border-radius:5px"></div></div></div>`).join('')+'</div><div class="legend" style="margin-top:6px"><span><i style="background:rgba(66,133,244,.4)"></i>Approved</span><span><i style="background:none;border:1.5px solid var(--green)"></i>Forecast</span><span><i style="background:var(--decision-blue)"></i>Actual</span></div>';
+  return c;
+}
+function headcountBars(inits){
+  const c=el('div','card'); const max=Math.max(...inits.map(i=>i.requiredHeadcount));
+  c.innerHTML='<div class="tablewrap" style="max-height:440px">'+inits.map(i=>{ const cov=CALC.headCover(i); return `<div style="margin:8px 0"><div class="flex between"><div class="mini">${i.shortTitle}</div><div class="mini">${i.assignedHeadcount}/${i.requiredHeadcount} · ${pct(cov*100)} ${cov<0.75?'⚑':''}</div></div>
+    <div style="position:relative;height:14px;background:rgba(95,99,104,.08);border-radius:5px;margin-top:3px"><div style="position:absolute;height:14px;width:${i.requiredHeadcount/max*100}%;background:rgba(124,77,255,.2);border-radius:5px"></div><div style="position:absolute;height:14px;width:${i.assignedHeadcount/max*100}%;background:${cov<0.6?'var(--red)':cov<0.75?'var(--amber)':'var(--green)'};border-radius:5px;opacity:.7"></div></div></div>`; }).join('')+'</div>';
+  return c;
+}
+function resourceConflicts(inits){
+  const c=el('div','card'); const skills={};
+  inits.forEach(i=>{ (i.specialistSkillsRequired||[]).forEach(s=>{ skills[s]=skills[s]||{committed:0,inits:[]}; skills[s].committed+=Math.max(0,i.requiredHeadcount-i.assignedHeadcount); skills[s].inits.push(i.shortTitle); }); });
+  const rows=Object.entries(skills).map(([s,v])=>{ const avail=Math.round(v.committed*0.7); const over=v.committed-avail; return `<tr><td><b>${s}</b></td><td class="tnum">${avail}</td><td class="tnum">${v.committed}</td><td class="tnum" style="${over>0?'color:var(--red);font-weight:700':''}">${over>0?'+'+over:'0'}</td><td class="mini">${v.inits.slice(0,4).join(', ')}</td><td>${over>0?'<span class="pill" style="background:rgba(10,102,194,.14);color:var(--decision-blue)">Decision required</span>':'—'}</td></tr>`; }).join('');
+  c.innerHTML=`<p class="mini muted">Detects where a shared skill pool is committed beyond available capacity.</p><div class="tablewrap"><table class="grid-t"><thead><tr><th>Skill</th><th>Available</th><th>Committed</th><th>Over-allocation</th><th>Initiatives affected</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return c;
+}
+
+/* ============================================================
+   DRAWERS
+   ============================================================ */
+function inFilter(id){ return filteredIds().has(id); }
+function initTitle(id){ return (state.data.initiatives.find(i=>i.initiativeId===id)||{}).title||id; }
+function initShort(id){ return (state.data.initiatives.find(i=>i.initiativeId===id)||{}).shortTitle||id; }
+
+function openDrawer(html){ const d=$('#drawer'); d.innerHTML=html; d.classList.add('show'); $('#drawerScrim').classList.add('show');
+  $$('.closex',d).forEach(x=>x.onclick=closeDrawer); wireTabs(d); }
+function closeDrawer(){ $('#drawer').classList.remove('show'); $('#drawerScrim').classList.remove('show'); }
+$('#drawerScrim').onclick=closeDrawer;
+function wireTabs(root){ $$('.tabs',root).forEach(tabs=>{ const tabEls=$$('.tab',tabs); const panes=$$('[data-pane]',root); tabEls.forEach(t=>{ t.onclick=()=>{ tabEls.forEach(x=>x.classList.remove('active')); t.classList.add('active'); panes.forEach(p=>p.style.display=p.dataset.pane===t.dataset.tab?'block':'none'); }; }); }); }
+
+function openInitiative(id){
+  const i=state.data.initiatives.find(x=>x.initiativeId===id); if(!i)return;
+  const es=CALC.effectiveStatus(i); const pr=CALC.priority(i); const dr=CALC.deliveryRisk(i);
+  const tiles=[['Overall',es.status],['Schedule',CALC.worstMilestoneSlip(id)>0?'Late':'On track'],['Budget',(CALC.budgetVar(i)*100).toFixed(0)+'%'],['Resources',pct(CALC.headCover(i)*100)],['Benefits',pct(CALC.benefitCover(i)*100)],['Dependencies',CALC.depsFor(id).filter(d=>d.status==='Overdue').length+' overdue'],['Confidence',i.confidenceLevel]];
+  const ms=CALC.msFor(id), rk=CALC.risksFor(id), dp=CALC.depsFor(id), de=CALC.decsFor(id), be=CALC.bensFor(id), ac=CALC.actsFor(id);
+  openDrawer(`<div class="dh"><div><div class="flex" style="gap:8px;align-items:center">${statusBadge(es.status)} <span class="pill">Priority ${pr.score}</span> <span class="pill" style="background:rgba(234,67,53,.12);color:#b31c10">Risk ${dr.score}</span></div>
+    <h2 style="margin:8px 0 2px">${i.title}</h2><div class="mini muted">${i.intendedOutcome}</div>
+    <div class="mini">${i.region} · ${i.businessUnit} · Sponsor ${i.executiveSponsor} · Owner ${i.initiativeOwner} · Updated ${fmtDate(i.lastUpdateDate)}</div></div>
+    <button class="closex">✕</button></div>
+   <div class="db">
+    <div class="grid" style="grid-template-columns:repeat(7,1fr);gap:8px">${tiles.map(t=>`<div class="card kpi" style="padding:9px"><div class="mini">${t[0]}</div><b style="font-size:13px">${t[1]}</b></div>`).join('')}</div>
+    <div class="tabs">${['Story','Milestones','Budget & resources','Risks & dependencies','Decisions','Benefits','Actions','Update history'].map((t,ix)=>`<div class="tab ${ix===0?'active':''}" data-tab="${ix}">${t}</div>`).join('')}</div>
+    <div data-pane="0">
+      <div class="card"><b>Business problem</b><p class="mini">${i.businessProblem}</p><b>Intended strategic outcome</b><p class="mini">${i.intendedOutcome}</p>
+      <b>Current status explanation</b><ul class="mini">${(es.overridden?es.calc:es.calc).reasons.map(r=>`<li>${r}</li>`).join('')}</ul>
+      ${es.overridden?`<div class="demo-flag">Owner override active: ${es.override.reason||'—'}</div>`:''}
+      <div class="flex" style="margin-top:10px"><button class="btn" data-updstatus="${id}">Update status</button></div></div>
+    </div>
+    <div data-pane="1" style="display:none"><div class="card"><table class="grid-t"><thead><tr><th>Milestone</th><th>Baseline</th><th>Forecast</th><th>Variance</th><th>Status</th><th>Gate</th><th>Owner</th></tr></thead><tbody>${ms.map(m=>`<tr><td><b>${m.title}</b> ${m.criticality==='Critical'?'<span class="pill" style="background:rgba(234,67,53,.12);color:#b31c10">Critical</span>':''}</td><td class="mini">${fmtDate(m.baselineDate)}</td><td class="mini">${fmtDate(m.forecastDate)}</td><td class="tnum" style="${m._slip>0?'color:var(--red)':'color:var(--green)'}">${m._slip>0?'+':''}${m._slip}d</td><td>${statusDot(m.status==='Complete'?'ok':m.status==='At risk'?'bad':m._slip>0?'warn':'ok')} ${m.status}</td><td>${m.decisionGate?'⚑':''}</td><td class="mini">${m.owner}</td></tr>`).join('')}</tbody></table></div></div>
+    <div data-pane="2" style="display:none"><div class="grid g2">
+      <div class="card"><b>Budget</b>${[['Approved',fmtMoney(i.approvedBudget)],['Forecast',fmtMoney(i.forecastBudget)],['Actual',fmtMoney(i.actualSpend)],['Variance',fmtMoney(i.forecastBudget-i.approvedBudget)],['Contingency',fmtMoney(i.contingencyBudget)],['Remaining',fmtMoney(i.forecastBudget-i.actualSpend)],['Benefit-to-cost',(i.benefitForecast/i.forecastBudget).toFixed(2)+'×']].map(r=>`<div class="flex between mini" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>${r[0]}</span><b class="tnum">${r[1]}</b></div>`).join('')}</div>
+      <div class="card"><b>Resources</b>${[['Required',i.requiredHeadcount+' FTE'],['Assigned',i.assignedHeadcount+' FTE'],['Gap',(i.requiredHeadcount-i.assignedHeadcount)+' FTE'],['Coverage',pct(CALC.headCover(i)*100)],['Skills',i.specialistSkillsRequired.join(', ')]].map(r=>`<div class="flex between mini" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}</div></div></div>
+    <div data-pane="3" style="display:none"><div class="card"><b>Risks</b><table class="grid-t"><thead><tr><th>Risk</th><th>Residual</th><th>Trend</th><th>Owner</th></tr></thead><tbody>${rk.map(r=>`<tr><td>${r.title}</td><td class="tnum">${r.residualScore}</td><td class="mini">${r.trend}</td><td class="mini">${r.mitigationOwner}</td></tr>`).join('')||'<tr><td class="mini muted">None</td></tr>'}</tbody></table>
+      <b style="display:block;margin-top:10px">Dependencies</b><table class="grid-t"><thead><tr><th>Dependency</th><th>With</th><th>Status</th></tr></thead><tbody>${dp.map(d=>`<tr><td>${d.title}</td><td class="mini">${d.sourceInitiativeId===id?initShort(d.targetInitiativeId):initShort(d.sourceInitiativeId)}</td><td class="mini">${d.status}</td></tr>`).join('')||'<tr><td class="mini muted">None</td></tr>'}</tbody></table></div></div>
+    <div data-pane="4" style="display:none"><div class="card">${de.map(d=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" data-open="${d.decisionId}"><b>${d.title}</b> ${decStatusBadge(d.decisionStatus)}<div class="mini muted">${d.decisionQuestion} · Owner ${d.decisionOwner} · Due ${fmtDate(d.requiredByDate)}</div></div>`).join('')||'<div class="mini muted">No decisions linked</div>'}</div></div>
+    <div data-pane="5" style="display:none"><div class="card"><table class="grid-t"><thead><tr><th>Benefit</th><th>Target</th><th>Forecast</th><th>Realized</th><th>Confidence</th><th>Validated</th></tr></thead><tbody>${be.map(b=>`<tr><td>${b.title}</td><td class="tnum">${fmtMoney(b.targetValue)}</td><td class="tnum">${fmtMoney(b.forecastValue)}</td><td class="tnum">${fmtMoney(b.realizedValue)}</td><td>${confBadge(b.confidence)}</td><td>${b.financeValidated?'✔':'—'}</td></tr>`).join('')}</tbody></table></div></div>
+    <div data-pane="6" style="display:none"><div class="card"><table class="grid-t"><thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>${ac.map(a=>`<tr><td>${a.title}</td><td class="mini">${a.owner}</td><td class="mini" style="${a.status==='Overdue'?'color:var(--red)':''}">${fmtDate(a.dueDate)}</td><td class="mini">${a.status}</td></tr>`).join('')||'<tr><td class="mini muted">None</td></tr>'}</tbody></table></div></div>
+    <div data-pane="7" style="display:none"><div class="card"><b>Audit history</b>${state.data.audit.filter(a=>a.entity===id).map(a=>`<div class="mini" style="padding:6px 0;border-bottom:1px solid var(--border)">${a.ts} · ${a.field}: ${a.prev} → <b>${a.next}</b> (${a.by}) — ${a.reason}</div>`).join('')||'<div class="mini muted">No changes recorded yet</div>'}</div></div>
+   </div>`);
+  setTimeout(()=>{ const b=$('[data-updstatus]'); if(b)b.onclick=()=>updateStatusModal(id); },0);
+}
+
+function openDecision(id){
+  const d=state.data.decisions.find(x=>x.decisionId===id); if(!d)return;
+  openDrawer(`<div class="dh"><div>${decStatusBadge(d.decisionStatus)} <span class="pill" style="background:rgba(234,67,53,.12);color:#b31c10">${d.urgency}</span>
+    <h2 style="margin:8px 0 2px">${d.title}</h2><div class="mini muted">${d.decisionQuestion}</div>
+    <div class="mini">Owner ${d.decisionOwner} · Forum ${d.decisionForum} · Required ${fmtDate(d.requiredByDate)}</div></div><button class="closex">✕</button></div>
+   <div class="db">
+    <div class="card"><b>Context</b><p class="mini">${d.decisionContext}</p><b>Consequence of delay</b><p class="mini" style="color:var(--red)">${d.consequenceOfDelay}</p><div class="flex" style="gap:14px"><div class="mini">Est. delay: <b>${d.estimatedDelayImpact}</b></div><div class="mini">Financial impact: <b>${fmtMoney(d.estimatedFinancialImpact)}</b></div></div></div>
+    <div class="section-h">Options</div>
+    <div class="grid g3">${d.options.map(o=>`<div class="card" style="${o.optionId===d.recommendedOptionId?'box-shadow:inset 0 0 0 2px var(--decision-blue)':''}"><div class="flex between"><b>${o.title}</b>${o.optionId===d.recommendedOptionId?'<span class="pill" style="background:rgba(10,102,194,.14);color:var(--decision-blue)">Recommended</span>':''}</div>
+      <p class="mini">${o.description}</p>
+      <div class="mini"><b>+</b> ${o.advantages.join(', ')}</div><div class="mini"><b>−</b> ${o.disadvantages.join(', ')}</div>
+      <div class="mini" style="margin-top:6px">Cost ${fmtMoney(o.costImpact)} · HC ${o.headcountImpact} · Sch ${o.scheduleImpact}</div>
+      <div class="mini">Risk ${o.riskImpact} · Benefit ${o.benefitImpact}</div>
+      <div class="mini">Complexity ${o.implementationComplexity} · Reversibility ${o.reversibility} · ${confBadge(o.confidence)}</div>
+      <button class="btn ghost" style="margin-top:8px;width:100%" data-recommend="${d.decisionId}|${o.optionId}">Set as recommendation</button></div>`).join('')}</div>
+    <div class="card" style="margin-top:12px"><b>Recommendation rationale</b><p class="mini">${d.recommendationRationale}</p>
+      <b>Evidence & assumptions</b><p class="mini">${d.evidence} · ${d.assumptions}</p>
+      ${d.finalDecision?`<b>Final decision</b><p class="mini">${d.finalDecision} — ${d.finalRationale}${d.conditions?' · Conditions: '+d.conditions:''}</p>`:''}
+      <div class="flex" style="margin-top:8px"><button class="btn" data-record="${d.decisionId}">Record final decision</button></div></div>
+    <div class="card" style="margin-top:12px"><b>Decision consequence links</b><div class="mini">Requesting initiative: ${initShort(d.requestingInitiativeId)} · Benefit hypothesis: ${d.benefitHypothesis}</div></div>
+   </div>`);
+  setTimeout(()=>{ $$('[data-recommend]').forEach(b=>b.onclick=()=>{ const [dc,op]=b.dataset.recommend.split('|'); const dd=state.data.decisions.find(x=>x.decisionId===dc); dd.recommendedOptionId=op; addAudit(dc,'recommendedOptionId','—',op,'Recommendation set'); persist(); openDecision(dc); toast('Recommendation updated'); }); const rb=$('[data-record]'); if(rb)rb.onclick=()=>recordDecisionModal(d.decisionId); },0);
+}
+
+function openAgenda(id){
+  const a=state.data.agendas.find(x=>x.agendaId===id); if(!a)return;
+  const total=(a.agendaItems||[]).reduce((s,it)=>s+(it.discussionTimeMinutes||0),0);
+  openDrawer(`<div class="dh"><div><h2 style="margin:0 0 4px">${a.title}</h2><div class="mini muted">${a.meetingType} · ${fmtDate(a.meetingDate)} · Chair ${a.chairperson}</div>
+    <div class="mini">Objectives: ${a.objectives.join('; ')}</div>
+    <div class="mini" style="${total>a.durationMinutes?'color:var(--red)':''}">Time: ${total} / ${a.durationMinutes} min ${total>a.durationMinutes?'⚑ over':''}</div></div><button class="closex">✕</button></div>
+   <div class="db"><div id="agItems">${(a.agendaItems||[]).map((it,ix)=>agendaItemHtml(it,ix)).join('')||'<div class="mini muted">No items yet — generate from portfolio on the agenda page</div>'}</div></div>`);
+}
+function agendaItemHtml(it,ix){ return `<div class="agenda-item" draggable="true" data-ix="${ix}"><div class="flex between"><b>${it.sequence}. ${it.title}</b><span class="tag">${it.purpose}</span></div><div class="mini muted">${it.presenter} · ${it.discussionTimeMinutes} min · ${it.linkedEntityType||''} ${it.linkedEntityId||''}</div><div class="mini">${it.talkingPoints||''}</div></div>`; }
+
+/* ============================================================
+   MODALS (create / edit)
+   ============================================================ */
+function openModal(html){ $('#modal').innerHTML=html; $('#modalScrim').classList.add('show'); $$('.closex,[data-close]',$('#modal')).forEach(x=>x.onclick=closeModal); }
+function closeModal(){ $('#modalScrim').classList.remove('show'); }
+$('#modalScrim').onclick=e=>{ if(e.target===$('#modalScrim'))closeModal(); };
+
+function updateStatusModal(id){
+  const i=state.data.initiatives.find(x=>x.initiativeId===id); const calc=CALC.calcStatus(i);
+  openModal(`<div class="flex between"><h3>Update status — ${i.shortTitle}</h3><button class="closex">✕</button></div>
+    <p class="mini">System-calculated: <b>${calc.status}</b> — ${calc.reasons[0]}</p>
+    <label class="f">Owner-reported status</label><select class="f" id="msStatus">${['On track','Attention required','At risk','Critical','Complete','On hold','Not started'].map(s=>`<option ${s===calc.status?'selected':''}>${s}</option>`).join('')}</select>
+    <label class="f">Override reason (required if different from calculated)</label><textarea class="f" id="msReason"></textarea>
+    <label class="f">Progress %</label><input class="f" id="msProg" type="number" value="${i.completionPercentage}"/>
+    <div class="flex" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" data-close style="margin-right:8px">Cancel</button><button class="btn" id="msSave">Save</button></div>`);
+  $('#msSave').onclick=()=>{ const st=$('#msStatus').value; const reason=$('#msReason').value; i.completionPercentage=+$('#msProg').value;
+    if(st!==calc.status){ if(!reason){toast('Override reason required');return;} i.statusOverride={status:st,reason,author:state.role,timestamp:new Date().toISOString().slice(0,16),reviewDate:null}; addAudit(id,'ownerStatus',calc.status,st,'Owner override: '+reason); }
+    else { i.statusOverride=null; }
+    i.lastUpdateDate=new Date().toISOString().slice(0,10); persist(); closeModal(); closeDrawer(); render(); toast('Status updated'); };
+}
+function recordDecisionModal(id){
+  const d=state.data.decisions.find(x=>x.decisionId===id);
+  openModal(`<div class="flex between"><h3>Record final decision</h3><button class="closex">✕</button></div>
+   <p class="mini">${d.decisionQuestion}</p>
+   <label class="f">Outcome</label><select class="f" id="dcOut"><option>Approved</option><option>Conditional approval</option><option>Rejected</option><option>Deferred</option></select>
+   <label class="f">Selected option</label><select class="f" id="dcOpt">${d.options.map(o=>`<option value="${o.optionId}" ${o.optionId===d.recommendedOptionId?'selected':''}>${o.title}</option>`).join('')}</select>
+   <label class="f">Rationale</label><textarea class="f" id="dcRat">${d.recommendationRationale}</textarea>
+   <label class="f">Conditions (optional)</label><input class="f" id="dcCond"/>
+   <div class="flex" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" data-close style="margin-right:8px">Cancel</button><button class="btn" id="dcSave">Record decision</button></div>`);
+  $('#dcSave').onclick=()=>{ const out=$('#dcOut').value; addAudit(id,'decisionStatus',d.decisionStatus,out,'Final decision recorded'); d.decisionStatus=out; d.finalDecision=d.options.find(o=>o.optionId===$('#dcOpt').value).title; d.finalRationale=$('#dcRat').value; d.conditions=$('#dcCond').value||null; d.decisionDate=new Date().toISOString().slice(0,10); d._overdue=false; d.updatedAt=d.decisionDate; persist(); closeModal(); openDecision(id); render(); toast('Decision recorded'); };
+}
+function createModal(type){
+  const T=type[0].toUpperCase()+type.slice(1);
+  const inits=state.data.initiatives;
+  const forms={
+    initiative:`<label class="f">Title</label><input class="f" id="c_title"/><label class="f">Strategic pillar</label><select class="f" id="c_pillar">${S.meta.PILLARS.map(p=>`<option>${p}</option>`).join('')}</select><label class="f">Region</label><select class="f" id="c_region">${S.meta.REGIONS.map(r=>`<option>${r}</option>`).join('')}</select><label class="f">Executive sponsor</label><input class="f" id="c_sponsor"/><label class="f">Approved budget (USD)</label><input class="f" id="c_budget" type="number" value="5000000"/><label class="f">Required headcount</label><input class="f" id="c_hc" type="number" value="20"/>`,
+    risk:`<label class="f">Initiative</label><select class="f" id="c_ini">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Risk title</label><input class="f" id="c_title"/><label class="f">Probability (1-5)</label><input class="f" id="c_p" type="number" value="3"/><label class="f">Impact (1-5)</label><input class="f" id="c_i" type="number" value="3"/><label class="f">Mitigation owner</label><input class="f" id="c_owner"/>`,
+    decision:`<label class="f">Initiative</label><select class="f" id="c_ini">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Decision title</label><input class="f" id="c_title"/><label class="f">Decision question</label><textarea class="f" id="c_q"></textarea><label class="f">Required by</label><input class="f" id="c_date" type="date"/>`,
+    dependency:`<label class="f">Source initiative</label><select class="f" id="c_src">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Target initiative</label><select class="f" id="c_tgt">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Title</label><input class="f" id="c_title"/>`,
+    action:`<label class="f">Initiative</label><select class="f" id="c_ini">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Action</label><input class="f" id="c_title"/><label class="f">Owner</label><input class="f" id="c_owner"/><label class="f">Due date</label><input class="f" id="c_date" type="date"/>`,
+    benefit:`<label class="f">Initiative</label><select class="f" id="c_ini">${inits.map(i=>`<option value="${i.initiativeId}">${i.shortTitle}</option>`).join('')}</select><label class="f">Benefit title</label><input class="f" id="c_title"/><label class="f">Type</label><select class="f" id="c_type">${S.meta.BENEFIT_TYPES.map(b=>`<option>${b}</option>`).join('')}</select><label class="f">Target value (USD)</label><input class="f" id="c_tgt" type="number" value="5000000"/>`,
+    agenda:`<label class="f">Title</label><input class="f" id="c_title"/><label class="f">Type</label><select class="f" id="c_type"><option>Monthly executive steering committee</option><option>Regional portfolio review</option><option>Sponsor review</option><option>Initiative deep dive</option><option>Risk escalation meeting</option><option>Budget and resource review</option><option>Benefits realization review</option></select><label class="f">Chair</label><input class="f" id="c_chair"/>`,
+    note:`<label class="f">Note</label><textarea class="f" id="c_title"></textarea>`
+  };
+  openModal(`<div class="flex between"><h3>New ${type}</h3><button class="closex">✕</button></div>${forms[type]||forms.note}<div class="flex" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" data-close style="margin-right:8px">Cancel</button><button class="btn" id="cSave">Create</button></div>`);
+  $('#cSave').onclick=()=>{ const v=id=>{const e=$('#'+id);return e?e.value:'';};
+    if(type==='initiative'){ const id='INI-'+String(state.data.initiatives.length+1).padStart(3,'0'); state.data.initiatives.push({initiativeId:id,title:v('c_title'),shortTitle:v('c_title').slice(0,22),strategicPillar:v('c_pillar'),initiativeType:'Transformation',region:v('c_region'),countries:[],businessUnit:'Wealth Core',clientSegment:'HNW',executiveSponsor:v('c_sponsor'),initiativeOwner:v('c_sponsor'),deliveryLead:'',financePartner:'',workforcePartner:'',startDate:new Date().toISOString().slice(0,10),targetEndDate:new Date(Date.now()+2e10).toISOString().slice(0,10),currentPhase:'Discovery',statusOverride:null,confidenceLevel:'Medium',completionPercentage:0,approvedBudget:+v('c_budget'),forecastBudget:+v('c_budget'),actualSpend:0,contingencyBudget:0,currency:'USD',requiredHeadcount:+v('c_hc'),assignedHeadcount:0,specialistSkillsRequired:[],benefitTarget:0,benefitForecast:0,benefitRealized:0,benefitConfidence:'Medium',benefitType:'Revenue growth',affectedClients:0,affectedEmployees:0,lastUpdateDate:new Date().toISOString().slice(0,10),nextUpdateDue:'',tags:[],_stratAlign:60,_execCommit:60,_regUrg:40,_timeCrit:50,_enable:50,_clientImpact:60,linkedMilestoneIds:[],linkedRiskIds:[],linkedDependencyIds:[],linkedDecisionIds:[],linkedBenefitIds:[],linkedActionIds:[],description:''}); }
+    else if(type==='risk'){ const rid='RSK-N'+(state.data.risks.length+1); const p=+v('c_p'),im=+v('c_i'); state.data.risks.push({riskId:rid,initiativeId:v('c_ini'),title:v('c_title'),category:'Delivery',probability:p,impact:im,inherentScore:p*im,residualProbability:p,residualImpact:im,residualScore:p*im,mitigation:'',mitigationOwner:v('c_owner'),mitigationDueDate:new Date().toISOString().slice(0,10),trend:'Stable',status:'Open',dateIdentified:new Date().toISOString().slice(0,10),lastReviewed:new Date().toISOString().slice(0,10),executiveAttentionRequired:p*im>=16,linkedDecisionId:null,region:(state.data.initiatives.find(i=>i.initiativeId===v('c_ini'))||{}).region}); }
+    else if(type==='decision'){ const did='DEC-N'+(state.data.decisions.length+1); const ini=state.data.initiatives.find(i=>i.initiativeId===v('c_ini')); state.data.decisions.push({decisionId:did,title:v('c_title'),decisionQuestion:v('c_q'),decisionContext:'',requestingInitiativeId:v('c_ini'),requestedBy:ini.initiativeOwner,decisionOwner:ini.executiveSponsor,decisionForum:'Group ExCo',requiredByDate:v('c_date')||new Date().toISOString().slice(0,10),decisionStatus:'Draft',urgency:'Medium',consequenceOfDelay:'',estimatedDelayImpact:'',estimatedFinancialImpact:0,options:[{optionId:did+'-O1',title:'Proceed',description:'',advantages:[],disadvantages:[],costImpact:0,headcountImpact:0,scheduleImpact:'',riskImpact:'Neutral',benefitImpact:'',implementationComplexity:'Medium',reversibility:'Medium',confidence:'Medium',supportingEvidence:''}],recommendedOptionId:did+'-O1',recommendationRationale:'',assumptions:'',evidence:'',decisionDate:null,finalDecision:null,finalRationale:null,conditions:null,followUpActions:[],reviewDate:null,benefitHypothesis:'',benefitRealized:0,createdAt:new Date().toISOString().slice(0,10),updatedAt:new Date().toISOString().slice(0,10),region:ini.region,_overdue:new Date(v('c_date'))<TODAY}); }
+    else if(type==='dependency'){ const did='DEP-N'+(state.data.dependencies.length+1); state.data.dependencies.push({dependencyId:did,title:v('c_title'),sourceInitiativeId:v('c_src'),targetInitiativeId:v('c_tgt'),dependencyType:'Technology',dependencyOwner:'',requiredByDate:new Date().toISOString().slice(0,10),committedDate:new Date().toISOString().slice(0,10),status:'On track',probabilityOfDelay:20,delayImpactDays:10,financialImpact:0,criticality:'High',escalationState:'Monitored',nextAction:'',linkedDecisionId:null,region:(state.data.initiatives.find(i=>i.initiativeId===v('c_src'))||{}).region}); }
+    else if(type==='action'){ const aid='ACT-N'+(state.data.actions.length+1); state.data.actions.push({actionId:aid,sourceType:'Manual',sourceId:v('c_ini'),title:v('c_title'),owner:v('c_owner'),raisedDate:new Date().toISOString().slice(0,10),dueDate:v('c_date'),priority:'Medium',status:'Open',overdueDays:0,escalationLevel:'None',region:''}); }
+    else if(type==='benefit'){ const bid='BEN-N'+(state.data.benefits.length+1); state.data.benefits.push({benefitId:bid,initiativeId:v('c_ini'),title:v('c_title'),benefitType:v('c_type'),targetValue:+v('c_tgt'),forecastValue:+v('c_tgt'),realizedValue:0,unit:'USD',currency:'USD',baselineDate:new Date().toISOString().slice(0,10),targetDate:'',benefitOwner:'',financeValidated:false,confidence:'Medium',sustainabilityStatus:'Not assessed',linkedDecisionIds:[],lastMeasuredDate:new Date().toISOString().slice(0,10),region:'',pillar:''}); }
+    else if(type==='agenda'){ const aid='AGD-N'+(state.data.agendas.length+1); state.data.agendas.push({agendaId:aid,title:v('c_title'),meetingDate:new Date().toISOString().slice(0,10),meetingType:v('c_type'),chairperson:v('c_chair'),participants:[],reportingPeriod:state.filters.period,objectives:[],agendaItems:[],preReadLinks:[],decisionsExpected:0,generatedFromFilters:false,status:'Draft',minutes:'',nextMeetingDate:'',durationMinutes:60}); }
+    persist(); closeModal(); render(); toast(T+' created'); };
+}
+
+function addAudit(entity,field,prev,next,reason){ state.data.audit.unshift({entity,field,prev,next,by:state.role,ts:new Date().toISOString().slice(0,16),reason}); }
+
+/* ============================================================
+   NARRATIVE & AGENDA GENERATION (deterministic)
+   ============================================================ */
+function genPortfolioNarrative(inits){
+  const crit=inits.filter(i=>CALC.effectiveStatus(i).status==='Critical').length;
+  const dec=state.data.decisions.filter(d=>d._overdue).length;
+  const ben=inits.reduce((a,i)=>a+i.benefitRealized,0);
+  return `<p><b>What we set out to achieve.</b> The portfolio pursues ${inits.length} initiatives across ${[...new Set(inits.map(i=>i.region))].length} regions, anchored on client growth, digital wealth, regulatory resilience and cost transformation.</p>
+  <p><b>What progressed.</b> ${inits.filter(i=>CALC.effectiveStatus(i).status==='On track').length} initiatives remain on track and ${fmtMoney(ben)} of benefit has been realized to date.</p>
+  <p><b>What is getting in the way.</b> ${crit} initiative${crit===1?'':'s'} ${crit===1?'is':'are'} critical, primarily driven by milestone slippage, resource coverage gaps and unresolved decisions. ${dec} leadership decision${dec===1?'':'s'} ${dec===1?'is':'are'} overdue.</p>
+  <p><b>What leadership must decide.</b> Priority decisions concern data-residency for the APAC pilot, budget treatment for cloud simplification, and compliance capacity funding.</p>
+  <p><b>What happens next.</b> Focus the next cycle on clearing overdue decisions and closing the specialist-skill gap that threatens three milestones.</p>`;
+}
+function genRibbon(inits){
+  const critDec=state.data.decisions.filter(d=>d._overdue).length;
+  const budOk=inits.reduce((a,i)=>a+CALC.budgetVar(i),0)/inits.length < 0.05;
+  return `The portfolio remains strategically aligned, but execution confidence declined this month because ${critDec} leadership decision${critDec===1?'':'s'} remain unresolved. Budget remains ${budOk?'within tolerance':'under pressure'}, while a shortage of compliance and data-engineering capacity now threatens several milestones.`;
+}
+function genNarrativeSections(inits){
+  const crit=inits.filter(i=>CALC.effectiveStatus(i).status==='Critical');
+  const attn=inits.filter(i=>CALC.effectiveStatus(i).status==='Attention required');
+  const overdueDec=state.data.decisions.filter(d=>d._overdue);
+  const ben=inits.reduce((a,i)=>a+i.benefitRealized,0), benT=inits.reduce((a,i)=>a+i.benefitTarget,0);
+  const s=[];
+  s.push({title:'1. Executive summary', bullets:[{text:`${inits.length} initiatives are in scope; ${inits.filter(i=>CALC.effectiveStatus(i).status==='On track').length} on track, ${crit.length} critical. ${overdueDec.length} decisions overdue.`,sources:['Portfolio'],conf:'High'}]});
+  s.push({title:'2. Portfolio health', bullets:[{text:`Aggregate forecast budget is ${fmtMoney(inits.reduce((a,i)=>a+i.forecastBudget,0))} against approved ${fmtMoney(inits.reduce((a,i)=>a+i.approvedBudget,0))}.`,sources:['Budget'],conf:'High'}]});
+  s.push({title:'3. Initiatives needing intervention', bullets:crit.map(i=>({text:`${i.title} is critical: ${CALC.calcStatus(i).reasons[0]}.`,sources:[i.initiativeId],conf:'High'})).concat(attn.slice(0,3).map(i=>({text:`${i.title} needs attention: ${CALC.calcStatus(i).reasons[0]||'Reason not provided.'}`,sources:[i.initiativeId],conf:'Medium'})))});
+  s.push({title:'4. Decisions required', bullets:overdueDec.slice(0,5).map(d=>({text:`${d.title} (${initShort(d.requestingInitiativeId)}) is overdue since ${fmtDate(d.requiredByDate)}. ${d.consequenceOfDelay}`,sources:[d.decisionId],conf:'High'}))});
+  s.push({title:'5. Benefits realized', bullets:[{text:`Realized benefit is ${fmtMoney(ben)} of a ${fmtMoney(benT)} target (${pct(ben/benT*100)}). Forecast is not stated as realized.`,sources:['Benefits'],conf:'Medium'}]});
+  s.push({title:'6. Priorities for next month', bullets:[{text:`Clear overdue decisions, close specialist-skill gaps, and confirm benefit baselines for finance validation.`,sources:['Portfolio'],conf:'Medium'}]});
+  return s;
+}
+function suggestAgenda(){
+  const items=[]; let seq=1;
+  const add=(title,purpose,entityType,entityId,mins,tp)=>items.push({agendaItemId:'AI-'+seq,sequence:seq++,title,purpose,presenter:'CoS',discussionTimeMinutes:mins,linkedEntityType:entityType,linkedEntityId:entityId,talkingPoints:tp,decisionRequired:purpose==='Decide',outcome:'',followUpActions:[]});
+  state.data.decisions.filter(d=>d._overdue).slice(0,3).forEach(d=>add('Overdue decision: '+d.title,'Decide','Decision',d.decisionId,10,d.consequenceOfDelay));
+  state.data.risks.filter(r=>r.residualScore>=16).slice(0,2).forEach(r=>add('Critical risk: '+r.title,'Escalate','Risk',r.riskId,8,'Residual score '+r.residualScore));
+  state.data.dependencies.filter(d=>d.status==='Overdue'&&d.criticality==='Critical').slice(0,2).forEach(d=>add('Cross-portfolio dependency: '+d.title,'Discuss','Dependency',d.dependencyId,6,'Overdue handover'));
+  add('Benefits trajectory review','Inform','Benefit',null,6,'Realized vs forecast update');
+  add('Recognition — initiatives ahead of plan','Inform',null,null,4,'Recognize strong delivery');
+  return items;
+}
+
+/* ============================================================
+   EXPORTS
+   ============================================================ */
+function toCSV(rows){ return rows.map(r=>r.map(c=>{ const s=String(c==null?'':c); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(',')).join('\n'); }
+function download(name,content,type='text/csv'){ const b=new Blob([content],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
+function exportPortfolio(){ const inits=filtered(); const rows=[['Initiative','Region','Pillar','Sponsor','Owner','Priority','DeliveryRisk','Status','Approved','Forecast','Actual','BenefitTarget','BenefitForecast','BenefitRealized','Required HC','Assigned HC']]; inits.forEach(i=>rows.push([i.title,i.region,i.strategicPillar,i.executiveSponsor,i.initiativeOwner,CALC.priority(i).score,CALC.deliveryRisk(i).score,CALC.effectiveStatus(i).status,i.approvedBudget,i.forecastBudget,i.actualSpend,i.benefitTarget,i.benefitForecast,i.benefitRealized,i.requiredHeadcount,i.assignedHeadcount])); download('portfolio.csv',toCSV(rows)); toast('Portfolio CSV exported'); }
+function exportRisk(){ const ids=filteredIds(); const rows=[['Risk','Initiative','Category','Probability','Impact','Inherent','Residual','Trend','MitigationOwner','Due','ExecAttention']]; state.data.risks.filter(r=>ids.has(r.initiativeId)).forEach(r=>rows.push([r.title,initShort(r.initiativeId),r.category,r.probability,r.impact,r.inherentScore,r.residualScore,r.trend,r.mitigationOwner,r.mitigationDueDate,r.executiveAttentionRequired])); download('risk-dependency.csv',toCSV(rows)); toast('Risk CSV exported'); }
+function exportDecisions(){ const rows=[['Decision','Initiative','Owner','Forum','Required','Status','Recommended','FinalDecision','FinancialImpact','ReviewDate']]; state.data.decisions.filter(d=>inFilter(d.requestingInitiativeId)).forEach(d=>rows.push([d.title,initShort(d.requestingInitiativeId),d.decisionOwner,d.decisionForum,d.requiredByDate,d.decisionStatus,(d.options.find(o=>o.optionId===d.recommendedOptionId)||{}).title,d.finalDecision||'',d.estimatedFinancialImpact,d.reviewDate||''])); download('decision-log.csv',toCSV(rows)); toast('Decision log exported'); }
+function exportBenefits(){ const ids=filteredIds(); const rows=[['Benefit','Initiative','Type','Target','Forecast','Realized','Confidence','FinanceValidated']]; state.data.benefits.filter(b=>ids.has(b.initiativeId)).forEach(b=>rows.push([b.title,initShort(b.initiativeId),b.benefitType,b.targetValue,b.forecastValue,b.realizedValue,b.confidence,b.financeValidated])); download('benefits.csv',toCSV(rows)); toast('Benefits CSV exported'); }
+function exportJSON(){ download('scc-backup.json',JSON.stringify(state.data,null,2),'application/json'); toast('JSON backup exported'); }
+function exportNarrativeOutline(inits){ const secs=genNarrativeSections(inits); let out='STRATEGIC COMMAND CENTER — EXECUTIVE STEERING OUTLINE\nPeriod '+state.filters.period+'\n(Fictional demonstration data)\n\n'; secs.forEach(s=>{ out+=s.title+'\n'; s.bullets.forEach(b=>out+='  • '+b.text+'   ['+b.sources.join(', ')+']\n'); out+='\n'; }); download('steering-outline.txt',out,'text/plain'); toast('Steering outline exported'); }
+function exportMenu(){ openModal(`<div class="flex between"><h3>Export</h3><button class="closex">✕</button></div><p class="mini muted">Exports reflect current filters. Seeded values are fictional demonstration data.</p>
+  <div class="grid g2" style="margin-top:8px">
+   ${[['Portfolio CSV','exp_portfolio'],['Risk & dependency CSV','exp_risk'],['Decision log CSV','exp_dec'],['Benefits CSV','exp_ben'],['Executive steering outline','exp_nar'],['JSON data backup','exp_json'],['Print executive dashboard','exp_print']].map(b=>`<button class="btn ghost" id="${b[1]}">${b[0]}</button>`).join('')}
+  </div>`);
+  $('#exp_portfolio').onclick=()=>{exportPortfolio();closeModal();}; $('#exp_risk').onclick=()=>{exportRisk();closeModal();}; $('#exp_dec').onclick=()=>{exportDecisions();closeModal();}; $('#exp_ben').onclick=()=>{exportBenefits();closeModal();}; $('#exp_nar').onclick=()=>{exportNarrativeOutline(filtered());closeModal();}; $('#exp_json').onclick=()=>{exportJSON();closeModal();}; $('#exp_print').onclick=()=>{closeModal();window.print();};
+}
+
+/* ============================================================
+   SEARCH & NOTIFICATIONS
+   ============================================================ */
+function runSearch(q){
+  const res=$('#searchResults'); if(!q){res.classList.remove('show');return;}
+  q=q.toLowerCase(); const groups={Initiatives:[],Decisions:[],Risks:[],Dependencies:[],Benefits:[],Agendas:[]};
+  state.data.initiatives.filter(i=>(i.title+i.executiveSponsor+i.initiativeOwner+i.region).toLowerCase().includes(q)).slice(0,5).forEach(i=>groups.Initiatives.push([i.title,()=>openInitiative(i.initiativeId)]));
+  state.data.decisions.filter(d=>(d.title+d.decisionQuestion).toLowerCase().includes(q)).slice(0,4).forEach(d=>groups.Decisions.push([d.title,()=>openDecision(d.decisionId)]));
+  state.data.risks.filter(r=>r.title.toLowerCase().includes(q)).slice(0,4).forEach(r=>groups.Risks.push([r.title+' — '+initShort(r.initiativeId),()=>openInitiative(r.initiativeId)]));
+  state.data.dependencies.filter(d=>d.title.toLowerCase().includes(q)).slice(0,3).forEach(d=>groups.Dependencies.push([d.title,()=>{state.page='risk';render();}]));
+  state.data.benefits.filter(b=>b.title.toLowerCase().includes(q)).slice(0,3).forEach(b=>groups.Benefits.push([b.title+' — '+initShort(b.initiativeId),()=>openInitiative(b.initiativeId)]));
+  state.data.agendas.filter(a=>a.title.toLowerCase().includes(q)).slice(0,3).forEach(a=>groups.Agendas.push([a.title,()=>openAgenda(a.agendaId)]));
+  res.innerHTML=''; let any=false;
+  Object.entries(groups).forEach(([g,items])=>{ if(!items.length)return; any=true; res.appendChild(el('div','grp',g)); items.forEach(([label,fn])=>{ const r=el('div','row',label); r.onclick=()=>{res.classList.remove('show');$('#globalSearch').value='';fn();}; res.appendChild(r); }); });
+  if(!any)res.innerHTML='<div class="row mini muted">No matches</div>';
+  res.classList.add('show');
+}
+function openNotifications(){
+  const notes=[];
+  state.data.decisions.filter(d=>d._overdue).forEach(d=>notes.push(['⚖','Decision overdue',d.title,'var(--red)']));
+  state.data.decisions.filter(d=>{const dd=daysBetween(TODAY,d.requiredByDate);return dd>=0&&dd<=7;}).forEach(d=>notes.push(['⚖','Decision due soon',d.title,'var(--decision-blue)']));
+  state.data.risks.filter(r=>r.trend==='Increasing'&&r.residualScore>=12).forEach(r=>notes.push(['⚠','Risk increased',r.title+' — '+initShort(r.initiativeId),'var(--amber)']));
+  state.data.dependencies.filter(d=>d.status==='Overdue').slice(0,5).forEach(d=>notes.push(['🔗','Dependency late',d.title,'var(--amber)']));
+  state.data.actions.filter(a=>a.status==='Overdue').slice(0,5).forEach(a=>notes.push(['✔','Action overdue',a.title,'var(--red)']));
+  state.data.initiatives.filter(i=>CALC.budgetVar(i)>0.15).forEach(i=>notes.push(['▤','Budget threshold breached',i.shortTitle,'var(--red)']));
+  state.data.initiatives.filter(i=>daysBetween(i.lastUpdateDate,TODAY)>30).slice(0,5).forEach(i=>notes.push(['◑','Initiative update overdue',i.shortTitle,'var(--ink2)']));
+  openModal(`<div class="flex between"><h3>Notifications</h3><button class="closex">✕</button></div><div style="max-height:60vh;overflow:auto;margin-top:8px">${notes.map(n=>`<div class="flex" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:16px">${n[0]}</span><div><b style="color:${n[3]}">${n[1]}</b><div class="mini">${n[2]}</div></div></div>`).join('')}</div>`);
+}
+function decStatusBadge(s){ const map={'Approved':'s-ontrack','Conditional approval':'s-ontrack','Ready for decision':'s-attention','Evidence gathering':'s-notstarted','Draft':'s-notstarted','Deferred':'s-hold','Rejected':'s-risk','Under review':'s-attention','Superseded':'s-hold','Closed':'s-complete'}; return `<span class="badge-status ${map[s]||'s-notstarted'}"><span class="sd"></span>${s}</span>`; }
+function portfolioStatus(inits){ const crit=inits.filter(i=>CALC.effectiveStatus(i).status==='Critical').length; const risk=inits.filter(i=>CALC.effectiveStatus(i).status==='At risk').length; if(crit>=2)return statusBadge('Critical'); if(crit+risk>=3)return statusBadge('At risk'); if(risk)return statusBadge('Attention required'); return statusBadge('On track'); }
+
+/* ============================================================
+   AGENDA BUILDER (drag reorder)
+   ============================================================ */
+function renderAgendaBuilder(a){
+  const box=$('#agendaBuild'); if(!box)return;
+  const total=(a.agendaItems||[]).reduce((s,it)=>s+(it.discussionTimeMinutes||0),0);
+  box.innerHTML=`<div class="flex between"><b>${a.title}</b><span class="mini ${total>a.durationMinutes?'':''}" style="${total>a.durationMinutes?'color:var(--red)':''}">${total}/${a.durationMinutes} min ${total>a.durationMinutes?'⚑ over':'✓'}</span></div>
+    <div class="mini muted" style="margin:4px 0 10px">${a.meetingType} · ${fmtDate(a.meetingDate)} · Chair ${a.chairperson}</div>
+    <div id="agBuildItems">${(a.agendaItems||[]).map((it,ix)=>agendaItemHtml(it,ix)).join('')||'<div class="mini muted">Click “Generate suggested agenda”.</div>'}</div>`;
+  // drag reorder
+  const cont=$('#agBuildItems'); if(!cont)return; let dragIx=null;
+  $$('.agenda-item',cont).forEach(item=>{
+    item.addEventListener('dragstart',()=>{dragIx=+item.dataset.ix;item.classList.add('dragging');});
+    item.addEventListener('dragend',()=>item.classList.remove('dragging'));
+    item.addEventListener('dragover',e=>{e.preventDefault();});
+    item.addEventListener('drop',e=>{e.preventDefault(); const dropIx=+item.dataset.ix; const arr=a.agendaItems; const [m]=arr.splice(dragIx,1); arr.splice(dropIx,0,m); arr.forEach((it,i)=>it.sequence=i+1); persist(); renderAgendaBuilder(a);});
+  });
+}
+
+/* ============================================================
+   ROUTER / RENDER
+   ============================================================ */
+function render(){
+  renderNav(); renderFilters();
+  const root=$('#pageRoot'); root.innerHTML='';
+  const page=(PAGES[state.page]||PAGES.home)();
+  root.appendChild(page);
+  // wire generic openers / exports / converts
+  $$('[data-open]',root).forEach(e=>e.addEventListener('click',ev=>{ ev.stopPropagation(); const id=e.dataset.open; if(id.startsWith('DEC'))openDecision(id); else if(id.startsWith('INI'))openInitiative(id); }));
+  $$('.node[data-open]',root).forEach(e=>e.addEventListener('click',()=>{ const id=e.dataset.open; if(id.startsWith('DEC'))openDecision(id);else openInitiative(id); }));
+  $$('[data-export]',root).forEach(e=>e.onclick=(ev)=>{ev.stopPropagation(); ({portfolio:exportPortfolio,risk:exportRisk})[e.dataset.export]?.();});
+  $$('[data-convert]',root).forEach(e=>e.onclick=(ev)=>{ev.stopPropagation(); convertRisk(e.dataset.convert);});
+  document.documentElement.setAttribute('data-mode',state.mode);
+  persist();
+}
+function convertRisk(rid){ const r=state.data.risks.find(x=>x.riskId===rid); if(!r)return; const did='DEC-R'+(state.data.decisions.length+1); const ini=state.data.initiatives.find(i=>i.initiativeId===r.initiativeId);
+  state.data.decisions.push({decisionId:did,title:'Risk escalation: '+r.title,decisionQuestion:'How should we respond to '+r.title+'?',decisionContext:'Converted from risk '+rid,requestingInitiativeId:r.initiativeId,requestedBy:r.mitigationOwner,decisionOwner:ini.executiveSponsor,decisionForum:'Risk Committee',requiredByDate:r.mitigationDueDate,decisionStatus:'Draft',urgency:r.residualScore>=16?'Critical':'High',consequenceOfDelay:'Risk may materialise.',estimatedDelayImpact:'',estimatedFinancialImpact:0,options:[{optionId:did+'-O1',title:'Accept residual risk',description:'',advantages:['No spend'],disadvantages:['Exposure remains'],costImpact:0,headcountImpact:0,scheduleImpact:'',riskImpact:'Increases',benefitImpact:'',implementationComplexity:'Low',reversibility:'High',confidence:'Medium',supportingEvidence:''},{optionId:did+'-O2',title:'Fund additional mitigation',description:'',advantages:['Reduces risk'],disadvantages:['Cost'],costImpact:500000,headcountImpact:3,scheduleImpact:'',riskImpact:'Reduces',benefitImpact:'',implementationComplexity:'Medium',reversibility:'Medium',confidence:'High',supportingEvidence:''}],recommendedOptionId:did+'-O2',recommendationRationale:'Mitigation preferred given residual score.',assumptions:'',evidence:'Risk record '+rid,decisionDate:null,finalDecision:null,finalRationale:null,conditions:null,followUpActions:[],reviewDate:null,benefitHypothesis:'',benefitRealized:0,createdAt:new Date().toISOString().slice(0,10),updatedAt:new Date().toISOString().slice(0,10),region:r.region,_overdue:new Date(r.mitigationDueDate)<TODAY});
+  r.linkedDecisionId=did; ini.linkedDecisionIds.push(did); addAudit(r.initiativeId,'risk→decision','—',did,'Risk converted to decision request'); persist(); toast('Risk converted to decision request'); openDecision(did); render();
+}
+
+/* ============================================================
+   HEADER WIRING
+   ============================================================ */
+$('#periodSel').innerHTML=S.meta.PERIODS.map(p=>`<option ${p==='2026-09'?'selected':''}>${p}</option>`).join('');
+$('#periodSel').onchange=e=>{state.filters.period=e.target.value;persist();render();};
+$('#createSel').onchange=e=>{ if(e.target.value){createModal(e.target.value); e.target.value='';} };
+$('#exportBtn').onclick=exportMenu;
+$('#notifBtn').onclick=openNotifications;
+$('#modeBtn').onclick=()=>{ state.mode=state.mode==='light'?'dark':'light'; document.documentElement.setAttribute('data-mode',state.mode); persist(); };
+$('#globalSearch').addEventListener('input',e=>runSearch(e.target.value));
+document.addEventListener('click',e=>{ if(!e.target.closest('.searchbox'))$('#searchResults').classList.remove('show'); });
+$('#navToggle').onclick=()=>$('#sideNav').classList.toggle('open');
+function checkMobile(){ $('#navToggle').style.display=innerWidth<=1080?'flex':'none'; }
+window.addEventListener('resize',checkMobile);
+
+// user profile
+$('#userName').textContent='K Shreenath';
+$('#userRole').textContent=state.role;
+
+/* ============================================================
+   INIT
+   ============================================================ */
+restore();
+document.documentElement.setAttribute('data-mode',state.mode);
+$('#userRole').textContent=state.role;
+checkMobile();
+render();
+})();
+
+</script>
+</body>
+</html>

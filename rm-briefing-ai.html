@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RM Briefing AI — Internal decision-support prototype</title>
+
+<!-- React + ReactDOM -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- PropTypes (Recharts dep) + Recharts -->
+<script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+<script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<!-- Babel for in-browser JSX -->
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter','Google Sans','Roboto','Arial','sans-serif'] },
+        colors: {
+          gblue: { DEFAULT:'#1A73E8', bright:'#4285F4', deep:'#174EA6' },
+          ggreen:'#34A853', gyellow:'#FBBC04', gred:'#EA4335',
+          appbg:'#F8FAFD', surf2:'#F1F3F4',
+          ink:'#202124', ink2:'#5F6368', ink3:'#80868B',
+          bordr:'#DADCE0', divid:'#E8EAED',
+        },
+        boxShadow: {
+          soft:'0 1px 2px rgba(60,64,67,.08),0 1px 3px rgba(60,64,67,.10)',
+          card:'0 1px 3px rgba(26,115,232,.06),0 4px 14px rgba(60,64,67,.08)',
+          pop:'0 8px 30px rgba(60,64,67,.18)',
+        },
+        borderRadius: { xl2:'16px', xl3:'24px' },
+      }
+    }
+  }
+</script>
+<style>
+  html,body,#root{height:100%}
+  body{background:#F8FAFD;color:#202124;-webkit-font-smoothing:antialiased}
+  .dark body{background:#0e1116;color:#e8eaed}
+  *{scrollbar-width:thin;scrollbar-color:#c4c7cc transparent}
+  *::-webkit-scrollbar{width:9px;height:9px}
+  *::-webkit-scrollbar-thumb{background:#c4c7cc;border-radius:20px;border:2px solid transparent;background-clip:content-box}
+  .dark *::-webkit-scrollbar-thumb{background:#3a3f47;background-clip:content-box}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+  @keyframes pulseDot{0%,100%{opacity:.35}50%{opacity:1}}
+  .fadeUp{animation:fadeUp .28s ease both}
+  .sk{background:linear-gradient(90deg,#eef1f5 25%,#e2e6eb 37%,#eef1f5 63%);background-size:800px 100%;animation:shimmer 1.4s infinite linear}
+  .dark .sk{background:linear-gradient(90deg,#1b1f26 25%,#232833 37%,#1b1f26 63%);background-size:800px 100%}
+  [data-tip]{position:relative}
+  [data-tip]:hover:after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 7px);transform:translateX(-50%);
+    background:#202124;color:#fff;font-size:11px;line-height:1.3;padding:6px 8px;border-radius:8px;white-space:nowrap;z-index:80;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .dark [data-tip]:hover:after{background:#e8eaed;color:#111}
+  .cite{cursor:pointer;font-weight:600;color:#1A73E8;font-size:.72em;vertical-align:super;padding:0 1px}
+  .cite:hover{text-decoration:underline}
+  .dark .cite{color:#8ab4f8}
+  .navlink:focus-visible,button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid #1A73E8;outline-offset:2px;border-radius:8px}
+  .card{background:#fff;border:1px solid #E8EAED;border-radius:16px;box-shadow:0 1px 3px rgba(26,115,232,.05),0 4px 14px rgba(60,64,67,.06)}
+  .dark .card{background:#171b21;border-color:#262b33}
+  .surf2{background:#F1F3F4}.dark .surf2{background:#1b1f26}
+  .brd{border-color:#E8EAED}.dark .brd{border-color:#262b33}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const {useState,useMemo,useEffect,useRef,createContext,useContext} = React;
+const RC = window.Recharts || {};
+
+/* ============================================================
+   MOCK DATA MODEL  — all content is illustrative prototype data
+   ============================================================ */
+
+const DOCS = [
+  {id:'D-01',title:'European Rates House View — Q3',category:'House View',owner:'Rates Research',approvalStatus:'Approved',publicationDate:'2026-08-28',effectiveDate:'2026-09-01',reviewDate:'2026-11-01',expiryDate:'2026-12-01',version:'v4.2',supersedes:'D-01a',geography:'Europe',assetClass:'Rates',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:41},
+  {id:'D-02',title:'Global IG Credit Outlook',category:'Market Outlook',owner:'Credit Research',approvalStatus:'Approved',publicationDate:'2026-09-02',effectiveDate:'2026-09-03',reviewDate:'2026-11-15',expiryDate:'2026-12-15',version:'v2.0',supersedes:null,geography:'Global',assetClass:'Fixed Income',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:33},
+  {id:'D-03',title:'Private Credit — Approved House View',category:'House View',owner:'Private Markets',approvalStatus:'Approved',publicationDate:'2026-08-15',effectiveDate:'2026-08-18',reviewDate:'2026-10-18',expiryDate:'2026-11-18',version:'v1.4',supersedes:null,geography:'Global',assetClass:'Private Markets',accessLevel:'Restricted',freshnessStatus:'Review due soon',citationReady:true,conflictIds:[],usage:22},
+  {id:'D-04',title:'US Rates Strategy Note',category:'Investment Strategy',owner:'Rates Research',approvalStatus:'Approved',publicationDate:'2026-09-05',effectiveDate:'2026-09-06',reviewDate:'2026-11-06',expiryDate:'2026-12-06',version:'v3.1',supersedes:null,geography:'US',assetClass:'Rates',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:['C-01'],usage:28},
+  {id:'D-05',title:'US Rates Tactical Update (prior)',category:'Investment Strategy',owner:'Rates Research',approvalStatus:'Superseded',publicationDate:'2026-07-10',effectiveDate:'2026-07-11',reviewDate:'2026-09-11',expiryDate:'2026-09-30',version:'v2.9',supersedes:null,geography:'US',assetClass:'Rates',accessLevel:'Standard',freshnessStatus:'Superseded',citationReady:false,conflictIds:['C-01'],usage:6},
+  {id:'D-06',title:'EM Equities Outlook — Constructive',category:'Market Outlook',owner:'Equity Research',approvalStatus:'Approved',publicationDate:'2026-08-30',effectiveDate:'2026-09-01',reviewDate:'2026-10-30',expiryDate:'2026-11-30',version:'v1.2',supersedes:null,geography:'Emerging Markets',assetClass:'Equities',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:['C-02'],usage:19},
+  {id:'D-07',title:'EM Equities Risk Note — Cautious',category:'Risk Guidance',owner:'Risk Team',approvalStatus:'Approved',publicationDate:'2026-09-04',effectiveDate:'2026-09-05',reviewDate:'2026-11-05',expiryDate:'2026-12-05',version:'v1.0',supersedes:null,geography:'Emerging Markets',assetClass:'Equities',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:['C-02'],usage:14},
+  {id:'D-08',title:'Structured Products — Risk Guidance',category:'Risk Guidance',owner:'Risk Team',approvalStatus:'Approved',publicationDate:'2026-08-20',effectiveDate:'2026-08-22',reviewDate:'2026-10-22',expiryDate:'2026-11-22',version:'v2.3',supersedes:null,geography:'Global',assetClass:'Structured',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:17},
+  {id:'D-09',title:'Suitability Policy 2026',category:'Suitability Policy',owner:'Compliance',approvalStatus:'Approved',publicationDate:'2026-06-01',effectiveDate:'2026-06-15',reviewDate:'2026-09-15',expiryDate:'2026-10-01',version:'v6.0',supersedes:'D-09a',geography:'Global',assetClass:'All',accessLevel:'Standard',freshnessStatus:'Review due soon',citationReady:true,conflictIds:[],usage:37},
+  {id:'D-10',title:'Global Income Fund — Product Factsheet',category:'Product Factsheet',owner:'Product Specialists',approvalStatus:'Approved',publicationDate:'2026-08-25',effectiveDate:'2026-08-26',reviewDate:'2026-11-26',expiryDate:'2026-12-26',version:'v5.1',supersedes:null,geography:'Global',assetClass:'Multi-asset',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:25},
+  {id:'D-11',title:'Client Communication Policy',category:'Client Communication Policy',owner:'Compliance',approvalStatus:'Approved',publicationDate:'2026-05-10',effectiveDate:'2026-05-20',reviewDate:'2026-08-20',expiryDate:'2026-09-05',version:'v3.4',supersedes:null,geography:'Global',assetClass:'All',accessLevel:'Standard',freshnessStatus:'Stale',citationReady:false,conflictIds:[],usage:9},
+  {id:'D-12',title:'FX Outlook — USD & EUR',category:'Market Outlook',owner:'FX Research',approvalStatus:'Approved',publicationDate:'2026-09-01',effectiveDate:'2026-09-02',reviewDate:'2026-11-02',expiryDate:'2026-12-02',version:'v2.2',supersedes:null,geography:'Global',assetClass:'FX',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:16},
+  {id:'D-13',title:'Commodities Note — Energy (old)',category:'Market Outlook',owner:'Commodities Research',approvalStatus:'Approved',publicationDate:'2026-04-12',effectiveDate:'2026-04-14',reviewDate:'2026-07-14',expiryDate:'2026-08-01',version:'v1.1',supersedes:null,geography:'Global',assetClass:'Commodities',accessLevel:'Standard',freshnessStatus:'Expired',citationReady:false,conflictIds:[],usage:3},
+  {id:'D-14',title:'Regulatory Update — MiFID review',category:'Regulatory Update',owner:'Compliance',approvalStatus:'Approved',publicationDate:'2026-07-22',effectiveDate:'2026-07-25',reviewDate:'2026-09-10',expiryDate:'2026-10-25',version:'v1.0',supersedes:null,geography:'Europe',assetClass:'All',accessLevel:'Standard',freshnessStatus:'Stale',citationReady:true,conflictIds:[],usage:8},
+  {id:'D-15',title:'Regulatory Update — MiFID (prior draft)',category:'Regulatory Update',owner:'Compliance',approvalStatus:'Superseded',publicationDate:'2026-06-30',effectiveDate:'2026-07-01',reviewDate:'2026-08-01',expiryDate:'2026-08-10',version:'v0.9',supersedes:null,geography:'Europe',assetClass:'All',accessLevel:'Standard',freshnessStatus:'Superseded',citationReady:false,conflictIds:[],usage:1},
+  {id:'D-16',title:'European Equities Outlook',category:'Market Outlook',owner:'Equity Research',approvalStatus:'Approved',publicationDate:'2026-09-03',effectiveDate:'2026-09-04',reviewDate:'2026-11-04',expiryDate:'2026-12-04',version:'v2.1',supersedes:null,geography:'Europe',assetClass:'Equities',accessLevel:'Standard',freshnessStatus:'Current',citationReady:true,conflictIds:[],usage:21},
+  {id:'D-17',title:'US Equities Outlook',category:'Market Outlook',owner:'Equity Research',approvalStatus:'Pending',publicationDate:'2026-09-08',effectiveDate:'2026-09-09',reviewDate:'2026-11-09',expiryDate:'2026-12-09',version:'v1.0',supersedes:null,geography:'US',assetClass:'Equities',accessLevel:'Standard',freshnessStatus:'Current',citationReady:false,conflictIds:[],usage:0},
+];
+
+const CONFLICTS = [
+  {id:'C-01',topic:'US rate path into year-end',a:'D-04',b:'D-05',applicableDate:'2026-09-06',hierarchy:'D-04 supersedes D-05 (metadata establishes supersession)',action:'Use D-04 (current). D-05 retained for audit only.',resolved:true,
+   passA:'The strategy note now expects one further cut is unlikely before year-end; risks are balanced toward "higher for longer".',
+   passB:'The July tactical update assumed two cuts by December on a faster disinflation path.'},
+  {id:'C-02',topic:'EM equities directional stance',a:'D-06',b:'D-07',applicableDate:'2026-09-05',hierarchy:'No supersession — House View (D-06) vs Risk Guidance (D-07). Peer documents.',action:'Do not auto-resolve. Trigger specialist review.',resolved:false,
+   passA:'Approved outlook is constructive on EM equities on improving earnings breadth and a softer USD.',
+   passB:'Risk note flags elevated tail risk from EM funding conditions and advises a cautious near-term stance.'},
+];
+
+const MARKET = [
+  {id:'M-01',cat:'Rates',title:'European rate volatility expected to stay elevated',change:'Terminal-rate uncertainty widened vs prior approved view',markets:['EUR rates','Bunds'],relevance:'High',risks:'Path dependent on inflation prints',confidence:83,sources:['D-01'],dates:['2026-08-28'],theme:'Volatility',stance:'cautious'},
+  {id:'M-02',cat:'Fixed Income',title:'IG credit spreads seen range-bound',change:'Carry favoured over duration extension',markets:['EUR IG','USD IG'],relevance:'High',risks:'Supply-driven widening risk',confidence:78,sources:['D-02'],dates:['2026-09-02'],theme:'Carry',stance:'neutral'},
+  {id:'M-03',cat:'Equities',title:'EM equities view remains contested',change:'House View constructive; Risk note cautious',markets:['EM equities'],relevance:'Medium',risks:'Unresolved source conflict',confidence:52,sources:['D-06','D-07'],dates:['2026-08-30','2026-09-04'],theme:'Dispersion',stance:'no view'},
+  {id:'M-04',cat:'Foreign Exchange',title:'USD strength moderating into Q4',change:'Softer bias vs prior note',markets:['DXY','EURUSD'],relevance:'Medium',risks:'Data-dependent reversals',confidence:71,sources:['D-12'],dates:['2026-09-01'],theme:'USD',stance:'cautious'},
+  {id:'M-05',cat:'Private Markets',title:'Private credit spreads compressing modestly',change:'Selectivity emphasised at review',markets:['Direct lending'],relevance:'Medium',risks:'Review date approaching',confidence:66,sources:['D-03'],dates:['2026-08-15'],theme:'Selectivity',stance:'neutral'},
+  {id:'M-06',cat:'Commodities',title:'Energy note flagged as expired',change:'No current approved replacement',markets:['Brent','Gas'],relevance:'Low',risks:'Stale — do not cite as current',confidence:20,sources:['D-13'],dates:['2026-04-12'],theme:'Energy',stance:'stale'},
+  {id:'M-07',cat:'Macroeconomics',title:'Disinflation pace slower than prior base case',change:'Base case nudged on sticky services',markets:['Global'],relevance:'High',risks:'Repricing of cut expectations',confidence:74,sources:['D-04'],dates:['2026-09-05'],theme:'Inflation',stance:'cautious'},
+  {id:'M-08',cat:'Regulation',title:'MiFID review guidance under refresh',change:'Prior draft superseded; note now stale',markets:['Europe'],relevance:'Medium',risks:'Awaiting updated approved version',confidence:45,sources:['D-14'],dates:['2026-07-22'],theme:'Compliance',stance:'stale'},
+];
+
+/* ---- 5 fully-authored demo briefings (different evidence + control states) ---- */
+const BRIEFINGS = {
+  q1:{
+    id:'Q-1001', prompt:'What is the approved outlook for European investment-grade credit?',
+    status:'Grounded', confidence:86, timeSaved:22, model:'brief-orch-v1.4', promptV:'pv-2026.09',
+    retrieval:{rewrite:'approved outlook European investment-grade credit spreads carry duration', collections:['Market Outlook','House View'], retrieved:7, excluded:[{id:'D-13',reason:'Expired (freshness control)'},{id:'D-05',reason:'Superseded version'}], rerank:0.91, latency:1180},
+    sections:{
+      exec:[{t:'Approved research expects European IG credit spreads to stay broadly range-bound into Q4, with carry favoured over duration extension.',c:[1]}],
+      changed:[{t:'The view shifted from mild spread-tightening to range-bound as supply picked up.',c:[1]}],
+      matters:[{t:'Total-return expectations now lean on coupon carry rather than capital gains from spread compression.',c:[1]}],
+      relevance:[{t:'Suitable framing for income-oriented clients seeking measured credit exposure, subject to suitability checks.',c:[6]}],
+      risks:[{t:'Primary risk is supply-driven spread widening; a sharp risk-off move would pressure lower-rated IG.',c:[1]}],
+      talking:[{t:'Emphasise carry and quality bias within IG; avoid implying guaranteed returns.',c:[1,6]}],
+      questions:[{t:'What is the client\u2019s income objective and tolerance for mark-to-market volatility?',c:[]}],
+      followup:[{t:'Confirm suitability profile before proposing any specific instrument.',c:[6]}],
+    },
+    citations:[
+      {n:1,docId:'D-02',page:'p.3',section:'Spreads',excerpt:'We expect European IG spreads to remain range-bound into Q4, with carry favoured over duration extension.',rel:0.93,directly:true},
+      {n:6,docId:'D-09',page:'p.11',section:'Suitability',excerpt:'All product framing must be validated against the client suitability profile before discussion.',rel:0.71,directly:true},
+    ],
+    claims:[
+      {id:'cl1',text:'IG spreads expected range-bound into Q4',support:'Fully supported',cites:[1],conf:88,mat:'High'},
+      {id:'cl2',text:'Carry favoured over duration',support:'Fully supported',cites:[1],conf:85,mat:'High'},
+      {id:'cl3',text:'Suitable for income-oriented clients',support:'Partially supported',cites:[6],conf:64,mat:'Medium'},
+    ],
+    conflicts:[],
+  },
+  q2:{
+    id:'Q-1002', prompt:'What changed in the outlook for US rates?',
+    status:'Grounded with caveats', confidence:68, timeSaved:16, model:'brief-orch-v1.4', promptV:'pv-2026.09',
+    retrieval:{rewrite:'US rates outlook change cuts terminal rate year-end approved', collections:['Investment Strategy'], retrieved:5, excluded:[{id:'D-05',reason:'Superseded by D-04'}], rerank:0.84, latency:1320},
+    sections:{
+      exec:[{t:'The current strategy note moved to a "higher for longer" bias; a further cut before year-end is now viewed as unlikely.',c:[1]}],
+      changed:[{t:'The prior July view assumed two cuts by December; that document is superseded.',c:[1,2]}],
+      matters:[{t:'Front-end rate expectations have repriced, affecting cash and short-duration positioning.',c:[1]}],
+      relevance:[{t:'Relevant for clients holding duration; the change is directional, not a recommendation.',c:[1]}],
+      risks:[{t:'Caveat: disinflation could resume faster than expected, reopening the case for cuts. Evidence base is a single current note.',c:[1]}],
+      talking:[{t:'Frame as an evolving base case, not certainty. Note the superseded prior view for context.',c:[1,2]}],
+      questions:[{t:'Is the client positioned for a slower cut path than previously assumed?',c:[]}],
+      followup:[{t:'Monitor next inflation print; refresh if a newer approved note is issued.',c:[]}],
+    },
+    citations:[
+      {n:1,docId:'D-04',page:'p.2',section:'Rate path',excerpt:'A further cut before year-end is now unlikely; risks are balanced toward higher-for-longer.',rel:0.86,directly:true},
+      {n:2,docId:'D-05',page:'p.1',section:'Prior view',excerpt:'The July tactical update assumed two cuts by December on a faster disinflation path.',rel:0.62,directly:true,stale:true},
+    ],
+    claims:[
+      {id:'cl1',text:'Further cut before year-end unlikely',support:'Fully supported',cites:[1],conf:80,mat:'High'},
+      {id:'cl2',text:'Prior view assumed two cuts (now superseded)',support:'Fully supported',cites:[2],conf:72,mat:'Medium'},
+      {id:'cl3',text:'Evidence base is thin (single current note)',support:'Inferred',cites:[],conf:55,mat:'Medium'},
+    ],
+    conflicts:[],
+  },
+  q3:{
+    id:'Q-1003', prompt:'What is the approved view on emerging-market equities?',
+    status:'Conflicting evidence', confidence:52, timeSaved:12, model:'brief-orch-v1.4', promptV:'pv-2026.09',
+    retrieval:{rewrite:'approved view emerging market equities constructive cautious', collections:['Market Outlook','Risk Guidance'], retrieved:6, excluded:[], rerank:0.80, latency:1400},
+    sections:{
+      exec:[{t:'Two approved sources disagree on EM equities. The House View is constructive; the Risk note is cautious. No supersession exists between them.',c:[1,2]}],
+      changed:[{t:'A new Risk note introduced a cautious near-term stance alongside the constructive House View.',c:[2]}],
+      matters:[{t:'The directional stance cannot be stated as settled; both views are current and peer-level.',c:[1,2]}],
+      relevance:[{t:'Do not present a single EM stance to the client until the conflict is resolved.',c:[1,2]}],
+      risks:[{t:'Presenting only one side would misrepresent the approved evidence base.',c:[1,2]}],
+      talking:[{t:'Acknowledge both the constructive earnings case and the funding-risk caution; defer a firm stance.',c:[1,2]}],
+      questions:[{t:'Should this be escalated to a specialist before the client meeting?',c:[]}],
+      followup:[{t:'Specialist review requested — conflict C-02 open.',c:[]}],
+    },
+    citations:[
+      {n:1,docId:'D-06',page:'p.4',section:'Stance',excerpt:'Approved outlook is constructive on EM equities on improving earnings breadth and a softer USD.',rel:0.82,directly:true},
+      {n:2,docId:'D-07',page:'p.2',section:'Risk',excerpt:'Elevated tail risk from EM funding conditions; a cautious near-term stance is advised.',rel:0.81,directly:true},
+    ],
+    claims:[
+      {id:'cl1',text:'House View is constructive on EM equities',support:'Conflicting',cites:[1],conf:60,mat:'High'},
+      {id:'cl2',text:'Risk note advises caution on EM equities',support:'Conflicting',cites:[2],conf:60,mat:'High'},
+    ],
+    conflicts:['C-02'],
+  },
+  q4:{
+    id:'Q-1004', prompt:'What is the bank\u2019s outlook for Japanese small-cap equities?',
+    status:'Insufficient evidence', confidence:19, timeSaved:8, model:'brief-orch-v1.4', promptV:'pv-2026.09',
+    retrieval:{rewrite:'approved outlook Japanese small-cap equities', collections:['Market Outlook','House View'], retrieved:0, excluded:[{id:'D-13',reason:'Expired'},{id:'D-11',reason:'Stale'}], rerank:0.0, latency:900},
+    abstain:true,
+    sections:{
+      exec:[{t:'I could not establish this from the currently approved document set. No approved source covers Japanese small-cap equities.',c:[]}],
+    },
+    established:['No approved document in the active collections addresses Japanese small-cap equities.'],
+    notEstablished:['Any directional stance, target, or house view on this market.'],
+    missing:['Approved Japan equities small-cap outlook','Effective-dated regional equity note for Japan'],
+    saferPrompt:'Ask instead: "What is the approved outlook for European or US equities?" (both are covered).',
+    citations:[], claims:[], conflicts:[],
+  },
+  q5:{
+    id:'Q-1005', prompt:'Should my client buy the Global Income Fund?',
+    status:'Policy-restricted', confidence:0, timeSaved:6, model:'brief-orch-v1.4', promptV:'pv-2026.09',
+    retrieval:{rewrite:'Global Income Fund product facts suitability', collections:['Product Factsheet','Suitability Policy'], retrieved:4, excluded:[], rerank:0.77, latency:1050},
+    restricted:true, control:'Investment-recommendation guardrail',
+    explanation:'This tool provides approved internal information, not personalized investment advice. A buy/sell/hold recommendation cannot be generated.',
+    productFacts:[{t:'Global Income Fund targets diversified income across multi-asset holdings (illustrative).',c:[1]},{t:'Approved factsheet v5.1 is current and citation-ready.',c:[1]}],
+    suitability:['Client risk profile and capacity for loss','Income objective and time horizon','Concentration vs existing holdings','Liquidity needs'],
+    risks:[{t:'Income is not guaranteed; capital is at risk. Past performance is not indicative.',c:[2]}],
+    process:['Complete suitability assessment','Route personalized advice to an authorised specialist','Log the interaction per Client Communication Policy'],
+    citations:[
+      {n:1,docId:'D-10',page:'p.1',section:'Overview',excerpt:'The Global Income Fund seeks diversified income across multi-asset holdings.',rel:0.79,directly:true},
+      {n:2,docId:'D-09',page:'p.7',section:'Risk disclosure',excerpt:'Income is not guaranteed and capital is at risk; suitability must be confirmed.',rel:0.74,directly:true},
+    ],
+    claims:[], conflicts:[],
+  },
+};
+const DEMO_ORDER = ['q1','q2','q3','q4','q5'];
+
+/* ---- sample query log (20), feedback (10), audit (25), metrics (8 weeks) ---- */
+const rand=(a,b)=>Math.round(a+(b-a)*(Math.abs(Math.sin(a*12.9898+b*78.233))%1));
+const QUERY_TYPES=['Briefing','Market','Policy','Comparison','Product'];
+const USERS=['Alex Rivera','Priya Menon','Sofia Alvarez','Liam Chen','Nina Patel'];
+const STATUSES=['Grounded','Grounded with caveats','Conflicting evidence','Insufficient evidence','Policy-restricted','Requires specialist review'];
+
+const SAMPLE_QUERIES = Array.from({length:20},(_,i)=>{
+  const st=STATUSES[i%STATUSES.length];
+  const conf = st==='Grounded'?[80,92]:st==='Grounded with caveats'?[62,74]:st==='Conflicting evidence'?[46,58]:st==='Insufficient evidence'?[10,28]:st==='Policy-restricted'?[0,0]:[40,55];
+  const c = conf[0]+((i*7)%(Math.max(1,conf[1]-conf[0]+1)));
+  return {
+    id:'Q-'+(1001+i),
+    prompt:[ 'Approved outlook for European IG credit','What changed in US rates?','Approved view on EM equities','House view on private credit',
+      'Compare US vs European equities','Risks before discussing structured products','Latest suitability policy change','FX outlook for USD',
+      'Outlook for Japanese small-caps','Should my client buy the Global Income Fund?','Approved commodities energy view','MiFID review summary',
+      'European equities approved stance','Private credit selectivity note','Any conflicts on EM equities?','Duration vs carry positioning',
+      'Client-suitable income framing','Superseded US rate note context','Regulatory refresh status','Structured product caveats' ][i],
+    user:USERS[i%USERS.length], role:i%4===0?'Relationship Manager':(i%4===1?'Research Analyst':(i%4===2?'Compliance Reviewer':'Investment Specialist')),
+    status:st, confidence:c, citations: st.includes('Insufficient')?0:(st.includes('Policy')?2:2+(i%3)),
+    timeSaved: st.includes('Insufficient')?6:st.includes('Policy')?5:10+(i%15), feedback:['\u2014','Helpful','Needs review','Corrected'][i%4],
+    controls: st.includes('Policy')?['Recommendation guardrail']:st.includes('Conflicting')?['Conflict detection']:st.includes('Insufficient')?['Abstention','Stale exclusion']:['Citation coverage'],
+    assetClass:['Fixed Income','Rates','Equities','Private Markets','Equities','Structured','All','FX','Equities','Multi-asset'][i%10],
+    timestamp:'2026-09-'+String(13-(i%9)).padStart(2,'0')+' '+String(9+(i%8)).padStart(2,'0')+':'+String((i*7)%60).padStart(2,'0'),
+    collection:['Market Outlook','Investment Strategy','House View','Risk Guidance','Suitability Policy'][i%5],
+    model:'brief-orch-v1.4', promptV:'pv-2026.09',
+  };
+});
+
+const FEEDBACK = Array.from({length:10},(_,i)=>{
+  const issue=['Wrong source','Missing source','Citation mismatch','Outdated information','Conflicting information','Unsupported claim','Over-abstention','Under-abstention','Poor summary','Policy concern'][i];
+  const root=['retrieval','source gap','ranking','document metadata','policy logic','model generation','prompt behaviour','chunking','model generation','policy logic'][i];
+  return {
+    id:'F-'+(2001+i), query:SAMPLE_QUERIES[i].prompt, status:SAMPLE_QUERIES[i].status,
+    rating: (i%5===0?2:i%3===0?3:4), issue, comment:['Cited an older note','A relevant source was not retrieved','Excerpt did not match the claim','Used a stale date','Both views not shown','A claim had no citation','Abstained when evidence existed','Answered despite thin evidence','Summary missed the key change','Bordered on advice'][i],
+    correction: i%2===0?'RM edited wording and swapped citation':'\u2014',
+    reviewer:['S. Alvarez','L. Chen','N. Patel'][i%3], reviewStatus:['Open','In review','Resolved'][i%3], root,
+    original:'European IG spreads will tighten sharply into Q4 [3].',
+    corrected:'European IG spreads are expected to stay range-bound into Q4, with carry favoured [1].',
+  };
+});
+
+const AUDIT = Array.from({length:25},(_,i)=>{
+  const q=SAMPLE_QUERIES[i%SAMPLE_QUERIES.length];
+  return {
+    id:'A-'+(9001+i), ts:'2026-09-'+String(13-(i%12)).padStart(2,'0')+'T'+String(8+(i%10)).padStart(2,'0')+':'+String((i*11)%60).padStart(2,'0'),
+    qid:q.id, user:q.user, role:q.role, client:['Client A (fictional)','Client B (fictional)','Portfolio X (fictional)','\u2014'][i%4],
+    query:q.prompt, collection:q.collection, retrieved:q.citations+ (i%3), status:q.status, confidence:q.confidence,
+    citations:q.citations, controls:q.controls, feedback:q.feedback, exportAct:i%5===0?'PDF':'\u2014', model:q.model, promptV:q.promptV,
+  };
+});
+
+const METRICS = Array.from({length:8},(_,i)=>({
+  date:'W'+(i+1),
+  retrievalPrecision: 78+i*1.6, citationCoverage: 84+i*1.3, citationCorrectness: 88+i*0.8,
+  abstentionAccuracy: 72+i*2.1, unsupportedClaimRate: 6.2-i*0.45, staleSourceUsageRate: 4.1-i*0.35,
+  conflictDetectionRate: 80+i*1.5, averageTimeSaved: 14+i*1.1, userSatisfaction: 3.8+i*0.12,
+  manualCorrectionRate: 12-i*0.7, queriesReviewed: 40+i*8,
+}));
+const M=METRICS[METRICS.length-1];
+
+const CATEGORY_UNSUPPORTED=[{cat:'Briefing',rate:3.1},{cat:'Market',rate:4.6},{cat:'Policy',rate:2.2},{cat:'Comparison',rate:5.3},{cat:'Product',rate:3.8}];
+const SCATTER=METRICS.map(m=>({x:+m.retrievalPrecision.toFixed(1),y:+m.citationCoverage.toFixed(1)}));
+const CONF_CORR=[{band:'0-40',correction:34},{band:'40-60',correction:22},{band:'60-75',correction:12},{band:'75-90',correction:6},{band:'90-100',correction:2}];
+const TIMESAVE=[{wf:'Briefing',v:24},{wf:'Market scan',v:15},{wf:'Policy check',v:9},{wf:'Comparison',v:18},{wf:'Product',v:11}];
+const ABSTAIN_BREAK=[{name:'Correct abstain',value:62},{name:'Over-abstain',value:11},{name:'Under-abstain',value:9},{name:'Correct answer',value:18}];
+const SRC_HEALTH=[{name:'Current',value:10},{name:'Review due',value:2},{name:'Stale',value:2},{name:'Expired',value:1},{name:'Superseded',value:2}];
+const FUNNEL=[{stage:'Queries',v:420},{stage:'Retrieved',v:400},{stage:'Grounded',v:330},{stage:'Cited',v:315},{stage:'Accepted',v:288}];
+
+/* ---- shared helpers ---- */
+const docById=id=>DOCS.find(d=>d.id===id);
+const money=n=>n.toLocaleString();
+const FRESH_COLOR={Current:'ggreen','Review due soon':'gyellow',Stale:'gyellow',Expired:'gred',Superseded:'ink3'};
+const STATUS_META={
+  'Grounded':{c:'ggreen',ic:'shield-check'},'Grounded with caveats':{c:'gyellow',ic:'shield-alert'},
+  'Insufficient evidence':{c:'gyellow',ic:'search-x'},'Conflicting evidence':{c:'gred',ic:'git-compare'},
+  'Policy-restricted':{c:'gred',ic:'ban'},'Requires specialist review':{c:'gblue',ic:'user-check'},
+};
+
+/* ============================================================
+   ICONS (inline SVG, offline-safe)
+   ============================================================ */
+const P = {
+  home:'<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>',
+  sparkles:'<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/>',
+  trending:'<path d="M3 17l6-6 4 4 7-7"/><path d="M17 8h4v4"/>',
+  library:'<path d="M4 4h5v16H4z"/><path d="M11 4h4v16h-4z"/><path d="M17 5l3 1-4 15-3-1"/>',
+  shield:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
+  chart:'<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+  msg:'<path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/>',
+  audit:'<path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M9 3h6v3H9z"/><path d="M8 11h8M8 15h6"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+  bell:'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
+  chevd:'<path d="M6 9l6 6 6-6"/>', chevr:'<path d="M9 6l6 6-6 6"/>', chevl:'<path d="M15 6l-6 6 6 6"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>',
+  shieldcheck:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  shieldalert:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M12 8v4M12 15.5v.5"/>',
+  ban:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+  compare:'<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H16a2 2 0 0 1 2 2v7M15.5 18H8a2 2 0 0 1-2-2V8"/>',
+  usercheck:'<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5.5 6-5.5s6 2 6 5.5"/><path d="M16 12l2 2 4-4"/>',
+  searchx:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-3.5-3.5"/><path d="M9 9l4 4M13 9l-4 4"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>', x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  alert:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  db:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>',
+  ext:'<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
+  download:'<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  flag:'<path d="M5 21V4"/><path d="M5 4h11l-2 3 2 3H5"/>',
+  thumb:'<path d="M7 22V11l5-8 1 .8.4 1.2c.2.6 0 1.3-.2 2L12 9h6a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 16.8 20H7z"/><path d="M7 11H3v11h4"/>',
+  filter:'<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  dot:'<circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/>',
+  moon:'<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8z"/>',
+  panel:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  cal:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>',
+  layers:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  activity:'<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+  gauge:'<path d="M12 14l4-4"/><path d="M4 18a8 8 0 1 1 16 0"/><circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/>',
+  filecheck:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 15l2 2 3.5-3.5"/>',
+  lock:'<rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  route:'<circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M6 16.5V9a3 3 0 0 1 3-3h6"/>',
+  scale:'<path d="M12 3v18M7 21h10"/><path d="M6 7l-3 6h6zM18 7l-3 6h6zM6 7h12"/>',
+  upload:'<path d="M12 15V4"/><path d="M7 8l5-5 5 5"/><path d="M4 21h16"/>',
+  pause:'<path d="M8 5v14M16 5v14"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>',
+};
+function Icon({n,size=18,cls='',style={}}){
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+    className={cls} style={{flexShrink:0,...style}} aria-hidden="true"
+    dangerouslySetInnerHTML={{__html:P[n]||''}} />;
+}
+
+/* ============================================================
+   UI PRIMITIVES
+   ============================================================ */
+const TONE={ // background tints + text for semantic badges
+  green:'bg-ggreen/12 text-[#188038] dark:text-[#7fd39b]',
+  yellow:'bg-gyellow/18 text-[#9a6a00] dark:text-[#f7cd57]',
+  red:'bg-gred/12 text-[#c5221f] dark:text-[#f2a29f]',
+  blue:'bg-gblue/12 text-gblue dark:text-[#8ab4f8]',
+  gray:'bg-black/5 text-ink2 dark:bg-white/10 dark:text-[#c4c7cc]',
+};
+function Badge({tone='gray',children,icon,className=''}){
+  return <span className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-5 "+TONE[tone]+" "+className}>
+    {icon&&<Icon n={icon} size={12}/>}{children}</span>;
+}
+function toneFor(status){const m=STATUS_META[status];return m?({ggreen:'green',gyellow:'yellow',gred:'red',gblue:'blue'})[m.c]:'gray';}
+function StatusChip({status}){const m=STATUS_META[status]||{ic:'dot'};return <Badge tone={toneFor(status)} icon={m.ic}>{status}</Badge>;}
+function Freshness({s}){const t={Current:'green','Review due soon':'yellow',Stale:'yellow',Expired:'red',Superseded:'gray'}[s]||'gray';
+  const ic={Current:'check','Review due soon':'clock',Stale:'clock',Expired:'alert',Superseded:'refresh'}[s];
+  return <Badge tone={t} icon={ic}>{s}</Badge>;}
+function Confidence({v,size='md'}){
+  const t=v>=75?'green':v>=55?'yellow':v>0?'red':'gray';
+  const barc=v>=75?'#34A853':v>=55?'#FBBC04':v>0?'#EA4335':'#80868B';
+  if(size==='sm') return <Badge tone={t} icon="gauge">{v}%</Badge>;
+  return <div className="inline-flex items-center gap-2 min-w-[120px]">
+    <div className="h-1.5 w-16 rounded-full surf2 overflow-hidden"><div style={{width:v+'%',background:barc}} className="h-full rounded-full"/></div>
+    <span className="text-xs font-semibold" style={{color:barc}}>{v}%</span></div>;
+}
+function Card({children,className='',...r}){return <div className={"card "+className} {...r}>{children}</div>;}
+function SectionTitle({children,sub,icon,right}){return <div className="flex items-start justify-between gap-3 mb-3">
+  <div><h2 className="text-[15px] font-semibold flex items-center gap-2">{icon&&<Icon n={icon} size={16} cls="text-gblue"/>}{children}</h2>
+  {sub&&<p className="text-xs text-ink2 mt-0.5 dark:text-[#9aa0a6]">{sub}</p>}</div>{right}</div>;}
+function Btn({children,variant='ghost',icon,className='',...r}){
+  const v={
+    primary:'bg-gblue text-white hover:bg-gblue-deep shadow-soft',
+    tonal:'bg-gblue/10 text-gblue hover:bg-gblue/16 dark:text-[#8ab4f8]',
+    ghost:'hover:bg-black/5 text-ink2 dark:text-[#c4c7cc] dark:hover:bg-white/10',
+    outline:'border brd hover:bg-black/5 text-ink dark:text-[#e8eaed] dark:hover:bg-white/10',
+    danger:'bg-gred/10 text-gred hover:bg-gred/16',
+  }[variant];
+  return <button className={"inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition "+v+" "+className} {...r}>
+    {icon&&<Icon n={icon} size={15}/>}{children}</button>;
+}
+function Toggle({on,set,label}){return <button onClick={()=>set(!on)} className="inline-flex items-center gap-2 text-[13px]" aria-pressed={on} aria-label={label}>
+  <span className={"w-9 h-5 rounded-full transition relative "+(on?'bg-gblue':'bg-bordr dark:bg-[#3a3f47]')}>
+  <span className={"absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all "+(on?'left-4.5':'left-0.5')} style={{left:on?'18px':'2px'}}/></span>
+  {label&&<span className="text-ink2 dark:text-[#c4c7cc]">{label}</span>}</button>;}
+function Tip({text,children}){return <span data-tip={text} className="inline-flex">{children}</span>;}
+function Empty({icon='searchx',title,sub}){return <div className="flex flex-col items-center justify-center text-center py-14 px-6">
+  <div className="w-12 h-12 rounded-2xl surf2 grid place-items-center text-ink3 mb-3"><Icon n={icon} size={22}/></div>
+  <p className="text-sm font-medium">{title}</p>{sub&&<p className="text-xs text-ink2 mt-1 max-w-xs dark:text-[#9aa0a6]">{sub}</p>}</div>;}
+function Skeleton({className=''}){return <div className={"sk rounded-lg "+className}/>;}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+const NAV=[
+  {id:'home',label:'Home',icon:'home'},
+  {id:'briefing',label:'AI briefing',icon:'sparkles'},
+  {id:'market',label:'Market developments',icon:'trending'},
+  {id:'library',label:'Evidence library',icon:'library'},
+  {id:'risk',label:'Risk and controls',icon:'shield'},
+  {id:'quality',label:'Quality analytics',icon:'chart'},
+  {id:'feedback',label:'Feedback review',icon:'msg'},
+  {id:'audit',label:'Audit trail',icon:'audit'},
+  {id:'settings',label:'Settings',icon:'settings'},
+];
+const AppCtx=createContext();
+const useApp=()=>useContext(AppCtx);
+
+function TrustBar(){
+  const {setRoute}=useApp();
+  const items=[
+    {k:'Active knowledge base',v:'Global Wealth — Approved',tone:'blue',ic:'db'},
+    {k:'Last document refresh',v:'13 Sep 2026, 06:40',tone:'gray',ic:'refresh'},
+    {k:'Approved sources',v:'12 current',tone:'green',ic:'filecheck'},
+    {k:'Stale documents',v:'3 flagged',tone:'yellow',ic:'clock'},
+    {k:'Retrieval health',v:'Nominal',tone:'green',ic:'activity'},
+    {k:'Citation service',v:'Operational',tone:'green',ic:'check'},
+    {k:'Policy controls',v:'10 active',tone:'blue',ic:'shield'},
+  ];
+  return <div className="card px-3 py-2 flex items-stretch gap-1 overflow-x-auto">
+    {items.map((it,i)=><button key={i} onClick={()=>setRoute('risk')} className="group flex items-center gap-2 px-2.5 py-1 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-left whitespace-nowrap">
+      <span className={"w-7 h-7 grid place-items-center rounded-lg "+TONE[it.tone]}><Icon n={it.ic} size={14}/></span>
+      <span className="leading-tight"><span className="block text-[10px] uppercase tracking-wide text-ink3">{it.k}</span>
+      <span className="block text-[12px] font-medium">{it.v}</span></span>
+      {i<items.length-1&&<span className="w-px h-8 bg-divid dark:bg-[#262b33] ml-1"/>}
+    </button>)}
+  </div>;
+}
+
+function TopBar(){
+  const {dark,setDark,navOpen,setNavOpen,setRoute,ds,setDs}=useApp();
+  const [menu,setMenu]=useState(false);
+  return <header className="h-14 flex items-center gap-2 px-3 md:px-4 border-b brd bg-white/90 dark:bg-[#12161c]/90 backdrop-blur sticky top-0 z-40">
+    <button className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10" onClick={()=>setNavOpen(!navOpen)} aria-label="Toggle navigation"><Icon n="panel"/></button>
+    <button onClick={()=>setRoute('home')} className="flex items-center gap-2 pr-2">
+      <span className="w-8 h-8 rounded-xl grid place-items-center text-white" style={{background:'linear-gradient(135deg,#4285F4,#174EA6)'}}><Icon n="sparkles" size={18}/></span>
+      <span className="hidden sm:block leading-none text-left">
+        <span className="block text-[15px] font-semibold tracking-tight">RM Briefing AI</span>
+        <span className="block text-[10px] text-ink3">Evidence-grounded assistant</span></span>
+    </button>
+    <Badge tone="green" icon="lock" className="hidden md:inline-flex">Controlled environment</Badge>
+    <div className="flex-1 max-w-xl mx-auto hidden md:flex items-center gap-2 h-9 px-3 rounded-full surf2 border brd">
+      <Icon n="search" size={16} cls="text-ink3"/>
+      <input placeholder="Search approved sources, briefings, or run a command…" className="bg-transparent outline-none text-[13px] w-full placeholder:text-ink3"/>
+      <kbd className="text-[10px] text-ink3 border brd rounded px-1">/</kbd>
+    </div>
+    <div className="ml-auto flex items-center gap-1">
+      <label className="hidden lg:flex items-center gap-1.5 text-[12px] text-ink2 mr-1">
+        <Icon n="db" size={14} cls="text-gblue"/>
+        <select value={ds} onChange={e=>setDs(e.target.value)} className="bg-transparent outline-none font-medium cursor-pointer dark:text-[#e8eaed]">
+          <option>Global Wealth — Approved</option><option>EMEA Private Bank — Approved</option><option>Institutional — Approved</option>
+        </select></label>
+      <Tip text={dark?'Light mode':'Dark mode'}><button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"><Icon n={dark?'sun':'moon'}/></button></Tip>
+      <Tip text="Notifications"><button className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 relative"><Icon n="bell"/><span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-gred"/></button></Tip>
+      <Tip text="Help"><button onClick={()=>setRoute('risk')} className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"><Icon n="help"/></button></Tip>
+      <div className="relative">
+        <button onClick={()=>setMenu(!menu)} className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10">
+          <span className="w-8 h-8 rounded-full grid place-items-center text-white text-[13px] font-semibold" style={{background:'linear-gradient(135deg,#34A853,#1A73E8)'}}>AR</span>
+          <span className="hidden sm:block text-[12px] font-medium leading-none text-left">Alex Rivera<span className="block text-[10px] text-ink3 font-normal">Relationship Manager</span></span>
+          <Icon n="chevd" size={14} cls="text-ink3"/></button>
+        {menu&&<div className="absolute right-0 mt-2 w-52 card p-1.5 z-50 fadeUp" onMouseLeave={()=>setMenu(false)}>
+          {['Profile','Preferences','Switch document set','Sign out'].map(x=><button key={x} onClick={()=>{setMenu(false);if(x==='Preferences')setRoute('settings')}} className="w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-black/5 dark:hover:bg-white/10">{x}</button>)}
+        </div>}
+      </div>
+    </div>
+  </header>;
+}
+
+function NavRail(){
+  const {route,setRoute,navOpen,setNavOpen}=useApp();
+  const w=navOpen?'w-60':'w-[68px]';
+  return <aside className={"shrink-0 "+w+" transition-all duration-200 border-r brd bg-white dark:bg-[#12161c] hidden md:flex flex-col"}>
+    <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+      {NAV.map(n=>{const on=route===n.id;return <Tip key={n.id} text={navOpen?'':n.label}>
+        <button onClick={()=>setRoute(n.id)} aria-current={on?'page':undefined}
+          className={"navlink w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition "+(on?'bg-gblue/10 text-gblue dark:text-[#8ab4f8]':'text-ink2 dark:text-[#c4c7cc] hover:bg-black/5 dark:hover:bg-white/10')}>
+          <Icon n={n.icon} size={19}/>{navOpen&&<span className="truncate">{n.label}</span>}
+          {on&&navOpen&&<span className="ml-auto w-1.5 h-1.5 rounded-full bg-gblue"/>}
+        </button></Tip>;})}
+    </nav>
+    <div className="p-2 border-t brd space-y-2 text-[11px] text-ink2 dark:text-[#9aa0a6]">
+      {navOpen?<>
+        <div className="flex items-center gap-2 px-2"><span className="w-2 h-2 rounded-full bg-ggreen" style={{animation:'pulseDot 1.8s infinite'}}/>System health: Nominal</div>
+        <div className="flex items-center gap-2 px-2"><Icon n="filecheck" size={13}/>12 approved documents</div>
+        <div className="flex items-center gap-2 px-2"><Icon n="refresh" size={13}/>Ingested 13 Sep, 06:40</div>
+        <div className="px-2"><Badge tone="blue">Prototype · Internal use only</Badge></div>
+      </>:<div className="flex flex-col items-center gap-3 py-1">
+        <Tip text="System health: Nominal"><span className="w-2.5 h-2.5 rounded-full bg-ggreen"/></Tip>
+        <Tip text="12 approved documents"><Icon n="filecheck" size={16}/></Tip>
+        <Tip text="Prototype · Internal use only"><Icon n="lock" size={16} cls="text-gblue"/></Tip></div>}
+    </div>
+  </aside>;
+}
+
+function MobileNav(){const {route,setRoute}=useApp();
+  const items=NAV.slice(0,5);
+  return <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-[#12161c] border-t brd flex justify-around px-1 py-1">
+    {items.map(n=>{const on=route===n.id;return <button key={n.id} onClick={()=>setRoute(n.id)} className={"flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[10px] "+(on?'text-gblue':'text-ink2')}>
+      <Icon n={n.icon} size={20}/>{n.label.split(' ')[0]}</button>;})}
+  </nav>;
+}
+
+function Disclaimer(){return <div className="flex items-center gap-2 text-[11px] text-ink2 dark:text-[#9aa0a6] px-3 py-1.5 rounded-xl surf2 border brd">
+  <Icon n="info" size={13} cls="text-gblue shrink-0"/>
+  <span>Internal decision-support prototype. Outputs must be reviewed against approved bank processes. The assistant does not provide personalized investment advice. All data shown is illustrative.</span></div>;}
+
+/* ============================================================
+   PAGE 1 — HOME / RM COMMAND CENTRE
+   ============================================================ */
+const EXAMPLE_PROMPTS=[
+  'Brief me on the latest approved outlook for European rates',
+  'Summarize the approved house view on private credit',
+  'What changed in the latest suitability policy?',
+  'Compare the approved outlooks for US and European equities',
+  'What risks should I know before discussing structured products?',
+];
+function PageHome(){
+  const {setRoute,runDemo}=useApp();
+  const [q,setQ]=useState('');
+  const go=(text)=>{const key=text.toLowerCase();
+    let d='q1';
+    if(key.includes('us rate')||key.includes('changed'))d='q2';
+    else if(key.includes('emerging')||key.includes(' em '))d='q3';
+    else if(key.includes('buy')||key.includes('income fund'))d='q5';
+    runDemo(d,text);};
+  const quick=[
+    {t:'Prepare a client briefing',ic:'sparkles',to:'briefing'},
+    {t:'Review market changes',ic:'trending',to:'market'},
+    {t:'Check a policy',ic:'filecheck',to:'library'},
+    {t:'Compare approved sources',ic:'compare',to:'briefing'},
+    {t:'Review low-confidence answers',ic:'gauge',to:'quality'},
+  ];
+  const priority=[
+    {ic:'clock',tone:'yellow',t:'Suitability Policy 2026 review due',s:'Review date 15 Sep · D-09',to:'library'},
+    {ic:'compare',tone:'red',t:'Unresolved conflict: EM equities',s:'House View vs Risk note · C-02',to:'risk'},
+    {ic:'filecheck',tone:'green',t:'New approved: US Rates Strategy v3.1',s:'Effective 06 Sep · D-04',to:'library'},
+    {ic:'shield',tone:'blue',t:'Client Communication Policy stale',s:'Expired 05 Sep · D-11',to:'library'},
+    {ic:'book',tone:'gray',t:'2 saved briefing drafts',s:'European IG credit · US rates',to:'briefing'},
+  ];
+  const health=[
+    {k:'Approved & current',v:10,tone:'green'},{k:'Approaching review',v:2,tone:'yellow'},
+    {k:'Stale',v:2,tone:'yellow'},{k:'Conflicting',v:2,tone:'red'},{k:'Missing metadata',v:1,tone:'gray'},
+  ];
+  return <div className="space-y-4 fadeUp">
+    <Card className="p-6 md:p-7 overflow-hidden relative">
+      <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full" style={{background:'radial-gradient(closest-side,rgba(66,133,244,.14),transparent)'}}/>
+      <p className="text-[13px] text-gblue font-medium">Good morning, Alex</p>
+      <h1 className="text-2xl md:text-[26px] font-semibold tracking-tight mt-1">What do you need before your next client conversation?</h1>
+      <div className="mt-4 flex items-center gap-2 h-12 px-3 rounded-2xl border brd bg-white dark:bg-[#171b21] shadow-soft max-w-3xl">
+        <Icon n="sparkles" size={18} cls="text-gblue"/>
+        <input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&q&&go(q)}
+          placeholder="Ask across approved sources only…" className="flex-1 bg-transparent outline-none text-[14px] placeholder:text-ink3"/>
+        <Btn variant="primary" icon="arrow" onClick={()=>q&&go(q)}>Brief me</Btn>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 max-w-3xl">
+        {EXAMPLE_PROMPTS.map((p,i)=><button key={i} onClick={()=>go(p)} className="text-[12px] px-3 py-1.5 rounded-full border brd hover:bg-gblue/8 hover:border-gblue/40 text-ink2 dark:text-[#c4c7cc] transition">{p}</button>)}
+      </div>
+    </Card>
+
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {quick.map((c,i)=><button key={i} onClick={()=>setRoute(c.to)} className="card p-4 text-left hover:shadow-pop hover:-translate-y-0.5 transition group">
+        <span className="w-9 h-9 rounded-xl bg-gblue/10 text-gblue grid place-items-center mb-6 group-hover:bg-gblue group-hover:text-white transition"><Icon n={c.ic} size={18}/></span>
+        <p className="text-[13px] font-medium leading-snug">{c.t}</p>
+        <span className="text-[11px] text-gblue flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition">Open <Icon n="chevr" size={12}/></span>
+      </button>)}
+    </div>
+
+    <div className="grid lg:grid-cols-3 gap-4">
+      <Card className="p-5 lg:col-span-2">
+        <SectionTitle icon="bell" sub="Items needing attention before client conversations">Priority panel</SectionTitle>
+        <div className="space-y-1.5">
+          {priority.map((p,i)=><button key={i} onClick={()=>setRoute(p.to)} className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-left">
+            <span className={"w-8 h-8 rounded-lg grid place-items-center "+TONE[p.tone]}><Icon n={p.ic} size={15}/></span>
+            <span className="flex-1"><span className="block text-[13px] font-medium">{p.t}</span><span className="block text-[11px] text-ink2 dark:text-[#9aa0a6]">{p.s}</span></span>
+            <Icon n="chevr" size={15} cls="text-ink3"/></button>)}
+        </div>
+      </Card>
+      <Card className="p-5">
+        <SectionTitle icon="activity" sub="Live status of the approved set">Today’s evidence health</SectionTitle>
+        <div className="space-y-2.5">
+          {health.map((h,i)=><div key={i} className="flex items-center gap-3">
+            <span className={"w-2.5 h-2.5 rounded-full "+({green:'bg-ggreen',yellow:'bg-gyellow',red:'bg-gred',gray:'bg-ink3'})[h.tone]}/>
+            <span className="text-[13px] flex-1">{h.k}</span>
+            <span className="text-[13px] font-semibold">{h.v}</span></div>)}
+        </div>
+        <div className="mt-4 h-2 rounded-full overflow-hidden flex">
+          <div className="bg-ggreen" style={{width:'59%'}}/><div className="bg-gyellow" style={{width:'23%'}}/><div className="bg-gred" style={{width:'12%'}}/><div className="bg-ink3" style={{width:'6%'}}/>
+        </div>
+        <p className="text-[11px] text-ink2 mt-2 dark:text-[#9aa0a6]">17 documents in active set · illustrative</p>
+      </Card>
+    </div>
+
+    <Card className="p-5">
+      <SectionTitle icon="audit" sub="Recent assistant activity — click a row for the audit record" right={<Btn variant="ghost" icon="arrow" onClick={()=>setRoute('audit')}>Full audit trail</Btn>}>Recent activity</SectionTitle>
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-[13px] min-w-[820px]">
+          <thead><tr className="text-left text-ink3 text-[11px] uppercase tracking-wide border-b brd">
+            {['Query','User','Status','Confidence','Citations','Time saved','Feedback','Time'].map(h=><th key={h} className="py-2 px-2 font-medium">{h}</th>)}</tr></thead>
+          <tbody>
+            {SAMPLE_QUERIES.slice(0,7).map((q,i)=><tr key={i} onClick={()=>setRoute('audit')} className="border-b brd last:border-0 hover:bg-black/[.03] dark:hover:bg-white/5 cursor-pointer">
+              <td className="py-2.5 px-2 font-medium max-w-[240px] truncate">{q.prompt}</td>
+              <td className="px-2 text-ink2 dark:text-[#9aa0a6]">{q.user}</td>
+              <td className="px-2"><StatusChip status={q.status}/></td>
+              <td className="px-2"><Confidence v={q.confidence}/></td>
+              <td className="px-2">{q.citations}</td>
+              <td className="px-2 text-ggreen font-medium">{q.timeSaved} min</td>
+              <td className="px-2 text-ink2 dark:text-[#9aa0a6]">{q.feedback}</td>
+              <td className="px-2 text-ink3 whitespace-nowrap">{q.timestamp}</td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ============================================================
+   PAGE 2 — AI BRIEFING WORKSPACE
+   ============================================================ */
+const STAGES=['Checking access','Searching approved sources','Removing stale evidence','Checking source conflicts','Drafting briefing','Validating claims','Attaching citations','Applying policy controls'];
+const SECTION_LABELS={exec:'Executive summary',changed:'What changed',matters:'Why it matters',relevance:'Client relevance',risks:'Key risks and caveats',talking:'Approved talking points',questions:'Questions the RM may ask',followup:'Required follow-up'};
+
+function InlineCite({nums,onCite,active}){
+  if(!nums||!nums.length) return null;
+  return <>{nums.map(n=><sup key={n} className={"cite "+(active===n?'bg-gyellow/40 rounded':'')} onClick={()=>onCite(n)} title={"Open source ["+n+"]"}>[{n}]</sup>)}</>;
+}
+function Para({item,onCite,active,highlight}){
+  const isHi = highlight && item.c && item.c.includes(highlight);
+  return <p className={"text-[13.5px] leading-relaxed transition rounded px-1 -mx-1 "+(isHi?'bg-gyellow/20':'')}>
+    {item.t} <InlineCite nums={item.c} onCite={onCite} active={active}/></p>;
+}
+
+function BriefContext(){
+  const [exclExpired,setExcl]=useState(true);const [showConf,setShowConf]=useState(true);
+  const field=(label,val,opts)=><label className="block"><span className="text-[11px] text-ink2 dark:text-[#9aa0a6]">{label}</span>
+    <select defaultValue={val} className="mt-1 w-full h-9 px-2.5 rounded-xl border brd bg-white dark:bg-[#171b21] text-[13px] outline-none focus:border-gblue">
+      {opts.map(o=><option key={o}>{o}</option>)}</select></label>;
+  return <div className="space-y-3">
+    <SectionTitle icon="user" sub="Fictional client — illustrative only">Briefing context</SectionTitle>
+    <div className="grid grid-cols-2 gap-2.5">
+      {field('Client / portfolio','Client A (fictional)',['Client A (fictional)','Client B (fictional)','Portfolio X (fictional)'])}
+      {field('Client segment','Private wealth',['Private wealth','Institutional','Commercial'])}
+      {field('Geography','Europe',['Europe','US','Emerging Markets','Global'])}
+      {field('Relationship objective','Portfolio review',['Portfolio review','New allocation','Risk check','Reporting'])}
+      {field('Asset class','Fixed Income',['Fixed Income','Rates','Equities','Private Markets','FX','Multi-asset'])}
+      {field('Risk profile','Balanced',['Conservative','Balanced','Growth'])}
+      {field('Briefing type','Pre-meeting',['Pre-meeting','Market update','Policy check','Comparison'])}
+      {field('Output length','Standard',['Concise','Standard','Detailed'])}
+    </div>
+    <label className="block"><span className="text-[11px] text-ink2 dark:text-[#9aa0a6]">As-of date</span>
+      <input type="date" defaultValue="2026-09-13" className="mt-1 w-full h-9 px-2.5 rounded-xl border brd bg-white dark:bg-[#171b21] text-[13px] outline-none focus:border-gblue"/></label>
+    <div><span className="text-[11px] text-ink2 dark:text-[#9aa0a6]">Approved source collections</span>
+      <div className="flex flex-wrap gap-1.5 mt-1.5">{['House View','Market Outlook','Investment Strategy','Suitability Policy','Risk Guidance'].map(c=>
+        <Badge key={c} tone="blue" icon="check">{c}</Badge>)}</div></div>
+    <div className="pt-2 border-t brd space-y-2.5">
+      <Toggle on={exclExpired} set={setExcl} label="Exclude expired documents"/>
+      <Toggle on={showConf} set={setShowConf} label="Show conflicting sources"/>
+    </div>
+  </div>;
+}
+
+function Processing({stage}){
+  return <div className="card p-5 fadeUp">
+    <div className="flex items-center gap-2 mb-4"><span className="w-2 h-2 rounded-full bg-gblue" style={{animation:'pulseDot 1s infinite'}}/>
+      <span className="text-[13px] font-medium">Generating evidence-grounded briefing…</span></div>
+    <div className="space-y-2">
+      {STAGES.map((s,i)=>{const done=i<stage,cur=i===stage;
+        return <div key={i} className={"flex items-center gap-3 text-[13px] "+(done?'text-ink':cur?'text-gblue font-medium':'text-ink3')}>
+          <span className={"w-5 h-5 rounded-full grid place-items-center "+(done?'bg-ggreen text-white':cur?'bg-gblue/15 text-gblue':'surf2 text-ink3')}>
+            {done?<Icon n="check" size={12}/>:cur?<span className="w-2 h-2 rounded-full bg-gblue" style={{animation:'pulseDot 1s infinite'}}/>:<span className="w-1.5 h-1.5 rounded-full bg-ink3"/>}</span>
+          {s}{cur&&<span className="ml-auto"><Skeleton className="h-2 w-24"/></span>}</div>;})}
+    </div>
+  </div>;
+}
+
+function ActionBar(){
+  const acts=[['Save briefing','download','tonal'],['Copy with citations','copy','ghost'],['Export to PDF','filecheck','ghost'],
+    ['Add to client prep','plus','ghost'],['Request specialist review','usercheck','ghost'],['Mark for compliance','flag','ghost'],['Rate answer','star','ghost'],['Report unsupported claim','alert','danger']];
+  const [rated,setRated]=useState(0);const [msg,setMsg]=useState('');
+  return <div className="card p-3">
+    {msg&&<div className="mb-2 text-[12px] text-ggreen flex items-center gap-1.5"><Icon n="check" size={13}/>{msg} · logged as audit event</div>}
+    <div className="flex flex-wrap gap-1.5 items-center">
+      {acts.map(([t,ic,v])=><Btn key={t} icon={ic} variant={v} onClick={()=>setMsg(t)}>{t}</Btn>)}
+      <div className="ml-auto flex items-center gap-0.5 pl-2">{[1,2,3,4,5].map(s=>
+        <button key={s} onClick={()=>{setRated(s);setMsg('Rated '+s+'/5')}} className="p-0.5"><Icon n="star" size={16} cls={s<=rated?'text-gyellow':'text-ink3'} style={s<=rated?{fill:'#FBBC04'}:{}}/></button>)}</div>
+    </div>
+  </div>;
+}
+
+function RestrictedState({b,onCite,active}){
+  return <div className="card border-gred/40 overflow-hidden fadeUp">
+    <div className="bg-gred/8 px-5 py-3 flex items-center gap-2 border-b border-gred/20"><Icon n="ban" cls="text-gred"/>
+      <span className="font-semibold text-[14px] text-gred">Policy-restricted response</span>
+      <Badge tone="red" className="ml-auto">Control: {b.control}</Badge></div>
+    <div className="p-5 space-y-4">
+      <p className="text-[13.5px] leading-relaxed">{b.explanation}</p>
+      <div><h4 className="text-[12px] font-semibold text-ink2 dark:text-[#9aa0a6] uppercase tracking-wide mb-1.5">Relevant approved product facts</h4>
+        {b.productFacts.map((f,i)=><Para key={i} item={f} onCite={onCite} active={active}/>)}</div>
+      <div><h4 className="text-[12px] font-semibold text-ink2 dark:text-[#9aa0a6] uppercase tracking-wide mb-1.5">Suitability factors to verify</h4>
+        <ul className="text-[13.5px] space-y-1 list-disc pl-5">{b.suitability.map((s,i)=><li key={i}>{s}</li>)}</ul></div>
+      <div><h4 className="text-[12px] font-semibold text-ink2 dark:text-[#9aa0a6] uppercase tracking-wide mb-1.5">Risks and caveats</h4>
+        {b.risks.map((f,i)=><Para key={i} item={f} onCite={onCite} active={active}/>)}</div>
+      <div className="surf2 rounded-xl p-3"><h4 className="text-[12px] font-semibold mb-1.5 flex items-center gap-1.5"><Icon n="route" size={14} cls="text-gblue"/>Required bank process</h4>
+        <ol className="text-[13px] space-y-1 list-decimal pl-5">{b.process.map((s,i)=><li key={i}>{s}</li>)}</ol></div>
+      <Btn variant="primary" icon="usercheck">Request authorised specialist / compliance review</Btn>
+    </div>
+  </div>;
+}
+
+function AbstainState({b}){
+  return <div className="card border-gyellow/50 overflow-hidden fadeUp">
+    <div className="bg-gyellow/12 px-5 py-3 flex items-center gap-2 border-b border-gyellow/30"><Icon n="searchx" cls="text-[#9a6a00]"/>
+      <span className="font-semibold text-[14px]">Insufficient evidence — the assistant abstained</span>
+      <Badge tone="yellow" className="ml-auto">Abstention event recorded</Badge></div>
+    <div className="p-5 space-y-4">
+      <p className="text-[14px] font-medium">“I could not establish this from the currently approved document set.”</p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div><h4 className="text-[12px] font-semibold text-ggreen uppercase tracking-wide mb-1.5">What could be established</h4>
+          <ul className="text-[13px] space-y-1 list-disc pl-5">{b.established.map((s,i)=><li key={i}>{s}</li>)}</ul></div>
+        <div><h4 className="text-[12px] font-semibold text-gred uppercase tracking-wide mb-1.5">What could not be established</h4>
+          <ul className="text-[13px] space-y-1 list-disc pl-5">{b.notEstablished.map((s,i)=><li key={i}>{s}</li>)}</ul></div>
+      </div>
+      <div><h4 className="text-[12px] font-semibold text-ink2 dark:text-[#9aa0a6] uppercase tracking-wide mb-1.5">Missing evidence</h4>
+        <div className="flex flex-wrap gap-1.5">{b.missing.map((m,i)=><Badge key={i} tone="gray" icon="filecheck">{m}</Badge>)}</div></div>
+      <div className="surf2 rounded-xl p-3 flex items-start gap-2"><Icon n="info" size={15} cls="text-gblue mt-0.5"/>
+        <span className="text-[13px]"><b>Suggested safer reformulation:</b> {b.saferPrompt}</span></div>
+      <Btn variant="primary" icon="usercheck">Request specialist review</Btn>
+    </div>
+  </div>;
+}
+
+function BriefingRenderer({b,onCite,active,highlight}){
+  if(b.restricted) return <RestrictedState b={b} onCite={onCite} active={active}/>;
+  if(b.abstain) return <AbstainState b={b}/>;
+  const order=['exec','changed','matters','relevance','risks','talking','questions','followup'];
+  return <div className="card p-5 fadeUp">
+    <div className="space-y-5">
+      {order.map((k,idx)=>b.sections[k]&&<div key={k}>
+        <h3 className="text-[12px] font-semibold text-gblue uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded grid place-items-center bg-gblue/10 text-[10px]">{idx+1}</span>{SECTION_LABELS[k]}</h3>
+        <div className="space-y-1.5">{b.sections[k].map((it,i)=><Para key={i} item={it} onCite={onCite} active={active} highlight={highlight}/>)}</div>
+      </div>)}
+      <div className="pt-3 border-t brd">
+        <h3 className="text-[12px] font-semibold text-gblue uppercase tracking-wide mb-2">Sources and effective dates</h3>
+        <div className="grid sm:grid-cols-2 gap-2">{b.citations.map(c=>{const d=docById(c.docId);return d&&
+          <button key={c.n} onClick={()=>onCite(c.n)} className="flex items-center gap-2 text-left p-2 rounded-lg border brd hover:border-gblue/40 hover:bg-gblue/5">
+            <span className="w-5 h-5 rounded bg-gblue/10 text-gblue grid place-items-center text-[11px] font-bold shrink-0">{c.n}</span>
+            <span className="min-w-0"><span className="block text-[12px] font-medium truncate">{d.title}</span>
+            <span className="block text-[10px] text-ink3">Effective {d.effectiveDate} · {c.page}</span></span>
+            {c.stale&&<Badge tone="yellow">stale</Badge>}</button>;})}</div>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ---- Evidence drawer ---- */
+function SourceCardRow({c,expanded,onToggle,onCite}){
+  const d=docById(c.docId);if(!d)return null;
+  return <div className="border brd rounded-xl overflow-hidden">
+    <button onClick={onToggle} className="w-full flex items-center gap-2.5 p-2.5 text-left hover:bg-black/[.03] dark:hover:bg-white/5">
+      <span className="w-6 h-6 rounded-lg bg-gblue/10 text-gblue grid place-items-center text-[11px] font-bold shrink-0">{c.n}</span>
+      <span className="min-w-0 flex-1"><span className="block text-[12.5px] font-medium truncate">{d.title}</span>
+        <span className="flex items-center gap-1.5 mt-0.5"><Badge tone="blue">{d.category}</Badge><Freshness s={d.freshnessStatus}/></span></span>
+      <span className="text-right shrink-0"><span className="block text-[10px] text-ink3">rel {(c.rel*100).toFixed(0)}%</span><Icon n={expanded?'chevd':'chevr'} size={14} cls="text-ink3"/></span>
+    </button>
+    {expanded&&<div className="px-3 pb-3 pt-1 text-[12px] space-y-1.5 fadeUp border-t brd surf2">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-ink2 dark:text-[#9aa0a6] pt-2">
+        <span>Owner: <b className="text-ink dark:text-[#e8eaed]">{d.owner}</b></span><span>Approval: <b className="text-ink dark:text-[#e8eaed]">{d.approvalStatus}</b></span>
+        <span>Published: {d.publicationDate}</span><span>Effective: {d.effectiveDate}</span>
+        <span>Review: {d.reviewDate}</span><span>Expiry: {d.expiryDate}</span>
+        <span>Version: {d.version}</span><span>{c.page} · {c.section}</span></div>
+      <div className="bg-white dark:bg-[#12161c] rounded-lg p-2 border brd"><span className="text-[10px] text-ink3">Supporting excerpt</span>
+        <p className="italic text-ink dark:text-[#e8eaed] mt-0.5">“{c.excerpt}”</p></div>
+      <Btn variant="ghost" icon="ext" onClick={()=>onCite(c.n)}>Highlight in briefing</Btn>
+    </div>}
+  </div>;
+}
+function ClaimRow({cl}){
+  const t={'Fully supported':'green','Partially supported':'yellow','Unsupported':'red','Conflicting':'red','Inferred':'blue'}[cl.support];
+  return <div className="flex items-start gap-2.5 p-2.5 rounded-xl border brd">
+    <span className={"w-2 h-2 rounded-full mt-1.5 shrink-0 "+({green:'bg-ggreen',yellow:'bg-gyellow',red:'bg-gred',blue:'bg-gblue'})[t]}/>
+    <div className="min-w-0 flex-1"><p className="text-[12.5px] leading-snug">{cl.text}</p>
+      <div className="flex items-center gap-1.5 mt-1"><Badge tone={t}>{cl.support}</Badge>
+        <span className="text-[10px] text-ink3">materiality {cl.mat} · {cl.conf}%</span>
+        {cl.cites.length>0&&<span className="text-[10px] text-gblue">cites {cl.cites.map(n=>'['+n+']').join('')}</span>}</div>
+      {cl.support==='Inferred'&&<p className="text-[10px] text-gblue mt-1 flex items-center gap-1"><Icon n="info" size={11}/>Presented as an inference, not a sourced fact.</p>}
+    </div></div>;
+}
+function EvidenceDrawer({b,active,onCite,onClose}){
+  const [tab,setTab]=useState('sources');const [exp,setExp]=useState(active||b.citations[0]?.n);
+  useEffect(()=>{if(active){setTab('sources');setExp(active);}},[active]);
+  const tabs=[['sources','Sources','library'],['claims','Claim map','route'],['conflicts','Conflicts','compare'],['retrieval','Retrieval details','activity']];
+  return <div className="flex flex-col h-full">
+    <div className="flex items-center gap-2 px-3 py-2.5 border-b brd">
+      <Icon n="eye" size={16} cls="text-gblue"/><span className="text-[13px] font-semibold">Evidence</span>
+      <button onClick={onClose} className="ml-auto p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 lg:hidden"><Icon n="x" size={16}/></button></div>
+    <div className="flex gap-1 px-2 pt-2">
+      {tabs.map(([id,l,ic])=><button key={id} onClick={()=>setTab(id)} className={"flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-[11.5px] font-medium "+(tab===id?'bg-gblue/10 text-gblue':'text-ink2 dark:text-[#9aa0a6] hover:bg-black/5 dark:hover:bg-white/10')}>
+        <Icon n={ic} size={13}/><span className="hidden xl:inline">{l}</span></button>)}
+    </div>
+    <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+      {tab==='sources'&&(b.citations.length?b.citations.map(c=><SourceCardRow key={c.n} c={c} expanded={exp===c.n} onToggle={()=>setExp(exp===c.n?null:c.n)} onCite={onCite}/>):<Empty title="No sources retrieved" sub="The approved set did not return supporting passages."/>)}
+      {tab==='claims'&&(b.claims.length?<>
+        <p className="text-[11px] text-ink2 dark:text-[#9aa0a6]">Each material claim mapped to its support status.</p>
+        {b.claims.map(cl=><ClaimRow key={cl.id} cl={cl}/>)}</>:<Empty icon="route" title="No claims to verify" sub="This response did not generate material claims."/>)}
+      {tab==='conflicts'&&(b.conflicts.length?b.conflicts.map(cid=>{const cf=CONFLICTS.find(x=>x.id===cid);return cf&&
+        <div key={cid} className="border border-gred/30 rounded-xl overflow-hidden">
+          <div className="bg-gred/8 px-3 py-2 flex items-center gap-2"><Icon n="compare" size={14} cls="text-gred"/><span className="text-[12px] font-semibold">{cf.topic}</span></div>
+          <div className="grid grid-cols-2 divide-x brd">
+            {[['A',cf.a,cf.passA],['B',cf.b,cf.passB]].map(([lbl,did,pass])=>{const d=docById(did);return <div key={lbl} className="p-2.5">
+              <span className="text-[10px] text-ink3">Source {lbl} · {did}</span><p className="text-[11.5px] font-medium">{d?.title}</p>
+              <p className="text-[11px] italic text-ink2 dark:text-[#9aa0a6] mt-1">“{pass}”</p>
+              <span className="text-[10px] text-ink3 block mt-1">{d?.effectiveDate}</span></div>;})}</div>
+          <div className="px-3 py-2 surf2 text-[11px] space-y-1"><p><b>Hierarchy:</b> {cf.hierarchy}</p><p><b>Recommended action:</b> {cf.action}</p>
+            {!cf.resolved&&<Btn variant="danger" icon="ban">Do not use until resolved</Btn>}</div>
+        </div>;}):<Empty icon="compare" title="No conflicts detected" sub="Retrieved sources are mutually consistent."/>)}
+      {tab==='retrieval'&&<div className="space-y-2 text-[12px]">
+        <p className="text-[11px] text-ink2 dark:text-[#9aa0a6]">For product & audit transparency.</p>
+        {[['User query',b.prompt],['Rewritten retrieval query',b.retrieval.rewrite],['Selected collections',b.retrieval.collections.join(', ')],
+          ['Retrieved chunks',b.retrieval.retrieved],['Rerank score',b.retrieval.rerank],['Retrieval latency',b.retrieval.latency+' ms'],
+          ['Model version',b.model],['Prompt version',b.promptV]].map(([k,v])=>
+          <div key={k} className="flex justify-between gap-3 p-2 rounded-lg surf2"><span className="text-ink2 dark:text-[#9aa0a6]">{k}</span><span className="font-medium text-right">{v}</span></div>)}
+        <div className="p-2 rounded-lg surf2"><span className="text-ink2 dark:text-[#9aa0a6] block mb-1">Excluded documents</span>
+          {b.retrieval.excluded.length?b.retrieval.excluded.map((e,i)=><div key={i} className="flex justify-between text-[11px] py-0.5"><span>{e.id} — {docById(e.id)?.title}</span><Badge tone="yellow">{e.reason}</Badge></div>):<span className="text-[11px]">None</span>}</div>
+      </div>}
+    </div>
+  </div>;
+}
+
+function PageBriefing(){
+  const {currentDemo,pending,setPending,setCurrentDemo,drawerOpen,setDrawerOpen}=useApp();
+  const [stage,setStage]=useState(0);const [active,setActive]=useState(null);const [highlight,setHighlight]=useState(null);
+  const b=BRIEFINGS[currentDemo]||BRIEFINGS.q1;
+  useEffect(()=>{if(!pending)return;setStage(0);setActive(null);setHighlight(null);
+    const iv=setInterval(()=>setStage(s=>{if(s>=STAGES.length-1){clearInterval(iv);setTimeout(()=>setPending(false),350);return s;}return s+1;}),480);
+    return()=>clearInterval(iv);},[pending,currentDemo]);
+  const onCite=(n)=>{setActive(n);setHighlight(n);setDrawerOpen(true);};
+  const st=STATUS_META[b.status]||{};
+  return <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_340px] gap-4 fadeUp">
+    <Card className="p-4 h-max lg:sticky lg:top-20 order-2 lg:order-1"><BriefContext/></Card>
+
+    <div className="space-y-3 order-1 lg:order-2 min-w-0">
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <span className="w-8 h-8 rounded-full grid place-items-center text-white shrink-0" style={{background:'linear-gradient(135deg,#34A853,#1A73E8)'}}>AR</span>
+          <div className="flex-1 min-w-0"><p className="text-[14px] font-medium">{b.prompt}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="text-[11px] text-ink3 flex items-center gap-1"><Icon n="db" size={12}/>Retrieval: {pending?'in progress':'complete'}</span>
+              <span className="text-[11px] text-ink3 flex items-center gap-1"><Icon n="library" size={12}/>{b.citations.length} evidence items</span>
+              {!pending&&<><StatusChip status={b.status}/><Confidence v={b.confidence} size="sm"/></>}
+            </div></div>
+          <div className="hidden sm:flex flex-col gap-1.5">
+            {DEMO_ORDER.map((k,i)=><button key={k} onClick={()=>{setCurrentDemo(k);setPending(true);}} data-tip={'Demo '+(i+1)+': '+BRIEFINGS[k].status}
+              className={"w-7 h-7 rounded-lg text-[11px] font-bold grid place-items-center "+(currentDemo===k?'bg-gblue text-white':'surf2 text-ink2')}>{i+1}</button>)}
+          </div>
+        </div>
+      </Card>
+      {pending?<Processing stage={stage}/>:<>
+        <BriefingRenderer b={b} onCite={onCite} active={active} highlight={highlight}/>
+        <ActionBar/>
+      </>}
+    </div>
+
+    <div className="order-3 hidden lg:block">
+      <Card className="h-[calc(100vh-96px)] sticky top-20 overflow-hidden p-0"><EvidenceDrawer b={b} active={active} onCite={onCite} onClose={()=>setDrawerOpen(false)}/></Card>
+    </div>
+    {drawerOpen&&<div className="lg:hidden fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/40" onClick={()=>setDrawerOpen(false)}/>
+      <div className="w-[88%] max-w-sm bg-white dark:bg-[#12161c] shadow-pop"><EvidenceDrawer b={b} active={active} onCite={onCite} onClose={()=>setDrawerOpen(false)}/></div></div>}
+  </div>;
+}
+
+/* ============================================================
+   PAGE 3 — MARKET DEVELOPMENTS
+   ============================================================ */
+const {ResponsiveContainer,LineChart,Line,AreaChart,Area,BarChart,Bar,ScatterChart,Scatter,XAxis,YAxis,CartesianGrid,Tooltip:RTooltip,PieChart,Pie,Cell,Legend,ComposedChart}=RC;
+const AXIS={fontSize:11,fill:'#80868B'};
+const CHART_TIMELINE=[
+  {t:'Jul',emerged:1,published:2,changed:0},{t:'Aug W1',emerged:2,published:3,changed:1},
+  {t:'Aug W3',emerged:3,published:4,changed:1},{t:'Sep W1',emerged:5,published:6,changed:2},{t:'Sep W2',emerged:6,published:8,changed:3},
+];
+const THEMES=['European rates','IG credit','EM equities','USD','Private credit','Energy'];
+const RESEARCH_SRC=['Rates Research','Credit Research','Equity Research','FX Research','Private Markets'];
+const MATRIX={
+  'European rates':['cautious','no view','no view','no view','no view'],
+  'IG credit':['no view','neutral','no view','no view','no view'],
+  'EM equities':['no view','no view','cautious','no view','no view'],
+  'USD':['no view','no view','no view','cautious','no view'],
+  'Private credit':['no view','no view','no view','no view','neutral'],
+  'Energy':['stale','no view','no view','no view','no view'],
+};
+const STANCE_STYLE={positive:'bg-ggreen/15 text-[#188038]',neutral:'bg-gblue/12 text-gblue',cautious:'bg-gyellow/20 text-[#9a6a00]',negative:'bg-gred/12 text-[#c5221f]','no view':'text-ink3','stale':'bg-black/5 text-ink3 line-through'};
+
+function PageMarket(){
+  const {setRoute}=useApp();
+  const [cat,setCat]=useState('All');const [approvedOnly,setApprovedOnly]=useState(true);
+  const cats=['All','Rates','Fixed Income','Equities','Foreign Exchange','Private Markets','Commodities','Macroeconomics','Regulation'];
+  const feed=MARKET.filter(m=>cat==='All'||m.cat===cat);
+  const summary=[
+    {k:'New developments',v:8,tone:'blue',ic:'trending'},{k:'Material changes',v:5,tone:'blue',ic:'activity'},
+    {k:'High-relevance themes',v:3,tone:'green',ic:'star'},{k:'Conflicting views',v:1,tone:'red',ic:'compare'},{k:'Stale market notes',v:2,tone:'yellow',ic:'clock'}];
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="trending" sub="Approved market developments — kept separate from client recommendations">Market developments</SectionTitle>
+    <Card className="p-3 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">{cats.map(c=><button key={c} onClick={()=>setCat(c)} className={"text-[12px] px-2.5 py-1 rounded-full border transition "+(cat===c?'bg-gblue text-white border-gblue':'brd hover:bg-black/5 dark:hover:bg-white/10 text-ink2 dark:text-[#c4c7cc]')}>{c}</button>)}</div>
+      <div className="ml-auto flex items-center gap-3">
+        <select className="h-8 px-2 rounded-lg border brd text-[12px] bg-white dark:bg-[#171b21]"><option>Last 30 days</option><option>Last 7 days</option><option>Quarter</option></select>
+        <select className="h-8 px-2 rounded-lg border brd text-[12px] bg-white dark:bg-[#171b21]"><option>All regions</option><option>Europe</option><option>US</option><option>EM</option></select>
+        <Toggle on={approvedOnly} set={setApprovedOnly} label="Approved only"/>
+      </div>
+    </Card>
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {summary.map((s,i)=><Card key={i} className="p-3.5"><div className="flex items-center gap-2 text-ink2 dark:text-[#9aa0a6] text-[11px]"><span className={"w-6 h-6 rounded-lg grid place-items-center "+TONE[s.tone]}><Icon n={s.ic} size={13}/></span>{s.k}</div>
+        <p className="text-2xl font-semibold mt-1.5">{s.v}</p></Card>)}
+    </div>
+    <div className="grid lg:grid-cols-3 gap-4">
+      <div className="lg:col-span-2 space-y-3">
+        {feed.map(m=><Card key={m.id} className="p-4">
+          <div className="flex items-start gap-2"><Badge tone="blue">{m.cat}</Badge>
+            <Badge tone={m.relevance==='High'?'green':m.relevance==='Medium'?'yellow':'gray'}>{m.relevance} relevance</Badge>
+            {m.stance==='stale'&&<Badge tone="yellow" icon="clock">stale</Badge>}
+            <span className="ml-auto"><Confidence v={m.confidence} size="sm"/></span></div>
+          <h3 className="text-[14px] font-semibold mt-2">{m.title}</h3>
+          <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[12px]">
+            <p><span className="text-ink3">What changed: </span>{m.change}</p>
+            <p><span className="text-ink3">Affected: </span>{m.markets.join(', ')}</p>
+            <p><span className="text-ink3">Client relevance: </span>{m.relevance}</p>
+            <p><span className="text-ink3">Risks: </span>{m.risks}</p></div>
+          <div className="flex items-center gap-2 mt-3 pt-2 border-t brd text-[11px] text-ink3">
+            <Icon n="library" size={13}/>{m.sources.length} source(s) · {m.dates.join(', ')}
+            <Btn variant="ghost" icon="ext" className="ml-auto" onClick={()=>setRoute('briefing')}>Open evidence</Btn></div>
+        </Card>)}
+      </div>
+      <div className="space-y-4">
+        <Card className="p-4"><SectionTitle icon="activity" sub="Emergence vs approval vs view change">Development timeline</SectionTitle>
+          <div style={{height:200}}><ResponsiveContainer>
+            <ComposedChart data={CHART_TIMELINE} margin={{left:-18,right:6,top:6}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/><XAxis dataKey="t" tick={AXIS} axisLine={false} tickLine={false}/><YAxis tick={AXIS} axisLine={false} tickLine={false}/>
+              <RTooltip contentStyle={{fontSize:12,borderRadius:12,border:'1px solid #DADCE0'}}/>
+              <Area dataKey="published" fill="#4285F4" fillOpacity={.12} stroke="#4285F4" name="Docs published"/>
+              <Line dataKey="emerged" stroke="#34A853" strokeWidth={2} dot={false} name="Developments"/>
+              <Line dataKey="changed" stroke="#EA4335" strokeWidth={2} dot={{r:3}} name="View changed"/>
+            </ComposedChart></ResponsiveContainer></div>
+          <p className="text-[10px] text-ink3 mt-1">Illustrative. Shows when supporting documents superseded older views.</p>
+        </Card>
+      </div>
+    </div>
+    <Card className="p-4">
+      <SectionTitle icon="compare" sub="Rows = themes · Columns = approved research sources · not buy/sell/hold instructions">Perspective comparison matrix</SectionTitle>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[12px] min-w-[720px]">
+          <thead><tr className="text-left text-ink3 text-[11px]"><th className="py-2 px-2">Theme</th>{RESEARCH_SRC.map(s=><th key={s} className="py-2 px-2 font-medium">{s}</th>)}</tr></thead>
+          <tbody>{THEMES.map(t=><tr key={t} className="border-t brd">
+            <td className="py-2 px-2 font-medium">{t}</td>
+            {MATRIX[t].map((v,i)=><td key={i} className="py-2 px-2"><span className={"px-2 py-1 rounded-md text-[11px] capitalize "+STANCE_STYLE[v]}>{v}</span></td>)}
+          </tr>)}</tbody>
+        </table>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ============================================================
+   PAGE 4 — EVIDENCE LIBRARY
+   ============================================================ */
+function PageLibrary(){
+  const [filter,setFilter]=useState('all');const [sel,setSel]=useState(null);const [q,setQ]=useState('');
+  const filters=[['all','All'],['Approved','Approved'],['Pending','Pending'],['Superseded','Superseded'],['stale','Stale'],['expired','Expired'],['citation','Citation-ready'],['policy','Policy']];
+  const rows=DOCS.filter(d=>{
+    if(q&&!d.title.toLowerCase().includes(q.toLowerCase()))return false;
+    if(filter==='all')return true;
+    if(filter==='stale')return d.freshnessStatus==='Stale'||d.freshnessStatus==='Review due soon';
+    if(filter==='expired')return d.freshnessStatus==='Expired';
+    if(filter==='citation')return d.citationReady;
+    if(filter==='policy')return d.category.includes('Policy');
+    return d.approvalStatus===filter;
+  });
+  const d=sel;
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="library" sub="Approved document management — front-end state only, no production workflow"
+      right={<Btn variant="primary" icon="upload">Upload document</Btn>}>Evidence library</SectionTitle>
+    <Card className="p-3 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 h-9 px-3 rounded-full surf2 border brd w-64"><Icon n="search" size={15} cls="text-ink3"/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search documents…" className="bg-transparent outline-none text-[13px] w-full"/></div>
+      <div className="flex flex-wrap gap-1.5">{filters.map(([id,l])=><button key={id} onClick={()=>setFilter(id)} className={"text-[12px] px-2.5 py-1 rounded-full border "+(filter===id?'bg-gblue text-white border-gblue':'brd hover:bg-black/5 dark:hover:bg-white/10 text-ink2 dark:text-[#c4c7cc]')}>{l}</button>)}</div>
+      <span className="ml-auto text-[12px] text-ink3">{rows.length} of {DOCS.length}</span>
+    </Card>
+    <Card className="p-0 overflow-hidden">
+      <div className="overflow-x-auto"><table className="w-full text-[12.5px] min-w-[1000px]">
+        <thead><tr className="text-left text-ink3 text-[11px] uppercase tracking-wide border-b brd surf2">
+          {['Document','Category','Owner','Approval','Published','Effective','Review','Version','Freshness','Cite','Conflicts'].map(h=><th key={h} className="py-2.5 px-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+        <tbody>{rows.map(dd=><tr key={dd.id} onClick={()=>setSel(dd)} className="border-b brd last:border-0 hover:bg-gblue/5 cursor-pointer">
+          <td className="py-2.5 px-3 font-medium max-w-[230px]"><span className="truncate block">{dd.title}</span><span className="text-[10px] text-ink3">{dd.id} · {dd.geography} · {dd.assetClass}</span></td>
+          <td className="px-3"><Badge tone="blue">{dd.category}</Badge></td>
+          <td className="px-3 text-ink2 dark:text-[#9aa0a6] whitespace-nowrap">{dd.owner}</td>
+          <td className="px-3"><Badge tone={dd.approvalStatus==='Approved'?'green':dd.approvalStatus==='Pending'?'yellow':'gray'}>{dd.approvalStatus}</Badge></td>
+          <td className="px-3 text-ink3 whitespace-nowrap">{dd.publicationDate}</td>
+          <td className="px-3 text-ink3 whitespace-nowrap">{dd.effectiveDate}</td>
+          <td className="px-3 text-ink3 whitespace-nowrap">{dd.reviewDate}</td>
+          <td className="px-3">{dd.version}</td>
+          <td className="px-3"><Freshness s={dd.freshnessStatus}/></td>
+          <td className="px-3">{dd.citationReady?<Icon n="check" size={15} cls="text-ggreen"/>:<Icon n="x" size={15} cls="text-ink3"/>}</td>
+          <td className="px-3">{dd.conflictIds.length?<Badge tone="red">{dd.conflictIds.length}</Badge>:<span className="text-ink3">0</span>}</td>
+        </tr>)}</tbody>
+      </table></div>
+    </Card>
+    {d&&<div className="fixed inset-0 z-50 flex justify-end">
+      <div className="flex-1 bg-black/40" onClick={()=>setSel(null)}/>
+      <div className="w-full max-w-md bg-white dark:bg-[#12161c] h-full overflow-y-auto shadow-pop fadeUp">
+        <div className="sticky top-0 bg-white dark:bg-[#12161c] border-b brd px-4 py-3 flex items-start gap-2 z-10">
+          <div className="flex-1"><h3 className="text-[15px] font-semibold">{d.title}</h3><p className="text-[11px] text-ink3">{d.id} · {d.version}</p></div>
+          <button onClick={()=>setSel(null)} className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"><Icon n="x"/></button></div>
+        <div className="p-4 space-y-4 text-[13px]">
+          <div className="flex flex-wrap gap-1.5"><Badge tone={d.approvalStatus==='Approved'?'green':'yellow'} icon="check">{d.approvalStatus}</Badge><Freshness s={d.freshnessStatus}/><Badge tone="blue">{d.category}</Badge>{d.citationReady&&<Badge tone="green" icon="filecheck">Citation-ready</Badge>}</div>
+          <div className="grid grid-cols-2 gap-2 surf2 rounded-xl p-3">
+            {[['Owner',d.owner],['Geography',d.geography],['Asset class',d.assetClass],['Access level',d.accessLevel],['Published',d.publicationDate],['Effective',d.effectiveDate],['Review',d.reviewDate],['Expiry',d.expiryDate],['Supersedes',d.supersedes||'—'],['Usage count',d.usage+' queries']].map(([k,v])=><div key={k}><span className="text-[10px] text-ink3 block">{k}</span><span className="font-medium">{v}</span></div>)}</div>
+          <div><h4 className="text-[12px] font-semibold text-ink2 uppercase tracking-wide mb-1.5">Approval chain</h4>
+            <div className="space-y-1.5">{['Drafted — '+d.owner,'Reviewed — Research QA','Approved — Governance board'].map((s,i)=><div key={i} className="flex items-center gap-2 text-[12px]"><span className="w-5 h-5 rounded-full bg-ggreen/15 text-ggreen grid place-items-center"><Icon n="check" size={11}/></span>{s}</div>)}</div></div>
+          <div><h4 className="text-[12px] font-semibold text-ink2 uppercase tracking-wide mb-1.5">Version history</h4>
+            <div className="text-[12px] space-y-1">{[d.version+' (current)',d.supersedes?d.supersedes+' (superseded)':'—'].filter(x=>x!=='—').map((v,i)=><div key={i} className="flex items-center gap-2"><Icon n="refresh" size={12} cls="text-ink3"/>{v}</div>)}</div></div>
+          {d.conflictIds.length>0&&<div className="border border-gred/30 rounded-xl p-3 bg-gred/5"><h4 className="text-[12px] font-semibold text-gred mb-1 flex items-center gap-1.5"><Icon n="compare" size={13}/>Linked conflicts</h4>
+            {d.conflictIds.map(c=><p key={c} className="text-[12px]">{c}: {CONFLICTS.find(x=>x.id===c)?.topic}</p>)}</div>}
+          <div className="flex flex-wrap gap-1.5 pt-2 border-t brd">{['Mark as approved','Replace version','Restrict access','Set review date','Link superseded','Archive'].map(a=><Btn key={a} variant="outline" className="text-[11px]">{a}</Btn>)}</div>
+          <p className="text-[10px] text-ink3">Actions update front-end state only — illustrative prototype.</p>
+        </div>
+      </div>
+    </div>}
+  </div>;
+}
+
+/* ============================================================
+   PAGE 5 — RISK AND CONTROLS
+   ============================================================ */
+const CONTROLS=[
+  {n:1,t:'Approved-source-only retrieval',d:'Retrieval restricted to the approved, controlled library.',st:'Active',tone:'green',ic:'db'},
+  {n:2,t:'Mandatory citation coverage',d:'Every material claim must carry ≥1 citation before display.',st:'Active',tone:'green',ic:'filecheck'},
+  {n:3,t:'Confidence threshold',d:'Answers below threshold abstain or flag limitations.',st:'Active · 55%',tone:'green',ic:'gauge'},
+  {n:4,t:'Stale-document exclusion',d:'Expired/superseded documents excluded from current evidence.',st:'Active',tone:'green',ic:'clock'},
+  {n:5,t:'Conflict detection',d:'Disagreeing approved sources surfaced, not auto-reconciled.',st:'1 open',tone:'yellow',ic:'compare'},
+  {n:6,t:'Unsupported-claim detection',d:'Claims without support are flagged before the answer shows.',st:'Active',tone:'green',ic:'alert'},
+  {n:7,t:'Investment-recommendation guardrail',d:'Blocks personalized buy/sell/hold advice.',st:'Active',tone:'green',ic:'ban'},
+  {n:8,t:'Restricted-document access',d:'Entitlement checks on restricted collections.',st:'Active',tone:'green',ic:'lock'},
+  {n:9,t:'Human review escalation',d:'Routes conflicts and low confidence to specialists.',st:'Active',tone:'green',ic:'usercheck'},
+  {n:10,t:'Audit logging',d:'Every interaction writes an immutable mock audit event.',st:'Active',tone:'green',ic:'audit'},
+];
+const TEST_PROMPTS=[
+  {p:'Should my client buy the Global Income Fund?',control:'Investment-recommendation guardrail',sev:'High',tone:'red',action:'Policy-restricted response',behaviour:'Return approved facts + suitability process, no recommendation.'},
+  {p:'What is the outlook for Japanese small-caps?',control:'Confidence threshold / abstention',sev:'Medium',tone:'yellow',action:'Abstain — insufficient evidence',behaviour:'State limits, suggest safer reformulation, log abstention.'},
+  {p:'What is the approved view on EM equities?',control:'Conflict detection',sev:'Medium',tone:'yellow',action:'Surface both views',behaviour:'Show A/B passages, trigger specialist review.'},
+  {p:'Summarize the energy commodities view',control:'Stale-document exclusion',sev:'Low',tone:'blue',action:'Warn — source expired',behaviour:'Exclude from current evidence, cite dates, seek newer source.'},
+];
+function PageRisk(){
+  const {runDemo}=useApp();
+  const [tp,setTp]=useState(TEST_PROMPTS[0]);const [ran,setRan]=useState(false);
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="shield" sub="How the assistant prevents unsafe or unsupported output">Risk and controls</SectionTitle>
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {CONTROLS.map(c=><Card key={c.n} className="p-4">
+        <div className="flex items-start gap-2.5"><span className={"w-9 h-9 rounded-xl grid place-items-center "+TONE[c.tone]}><Icon n={c.ic} size={17}/></span>
+          <div className="flex-1"><div className="flex items-center gap-2"><span className="text-[10px] text-ink3">Control {c.n}</span><Badge tone={c.tone} className="ml-auto">{c.st}</Badge></div>
+            <h3 className="text-[13px] font-semibold mt-0.5">{c.t}</h3></div></div>
+        <p className="text-[12px] text-ink2 dark:text-[#9aa0a6] mt-2">{c.d}</p>
+      </Card>)}
+    </div>
+    <div className="grid lg:grid-cols-2 gap-4">
+      <Card className="p-5">
+        <SectionTitle icon="ban" sub="Enter a sample prompt to see how controls respond">Guardrail test panel</SectionTitle>
+        <div className="space-y-2">{TEST_PROMPTS.map((t,i)=><button key={i} onClick={()=>{setTp(t);setRan(false);}} className={"w-full text-left p-2.5 rounded-xl border text-[12.5px] "+(tp.p===t.p?'border-gblue bg-gblue/5':'brd hover:bg-black/5 dark:hover:bg-white/10')}>{t.p}</button>)}</div>
+        <Btn variant="primary" icon="activity" className="mt-3" onClick={()=>setRan(true)}>Run control simulation</Btn>
+        {ran&&<div className="mt-3 border brd rounded-xl overflow-hidden fadeUp">
+          <div className={"px-3 py-2 flex items-center gap-2 "+TONE[tp.tone]}><Icon n="shield" size={15}/><span className="text-[12px] font-semibold">Control triggered: {tp.control}</span></div>
+          <div className="p-3 space-y-1.5 text-[12.5px]">
+            <div className="flex justify-between"><span className="text-ink3">Severity</span><Badge tone={tp.tone}>{tp.sev}</Badge></div>
+            <div className="flex justify-between"><span className="text-ink3">Response action</span><span className="font-medium">{tp.action}</span></div>
+            <div className="flex justify-between"><span className="text-ink3">Logged event</span><span className="font-medium">A-{9100+Math.floor(Math.random()*99)}</span></div>
+            <p className="pt-1"><span className="text-ink3">Expected behaviour: </span>{tp.behaviour}</p>
+            <Btn variant="tonal" icon="arrow" className="mt-1" onClick={()=>runDemo(tp.p.includes('buy')?'q5':tp.p.includes('Japanese')?'q4':tp.p.includes('EM')?'q3':'q1',tp.p)}>View in briefing workspace</Btn>
+          </div></div>}
+      </Card>
+      <div className="space-y-4">
+        <Card className="p-5"><SectionTitle icon="clock" sub="Illustrative thresholds — configurable by admins">Stale information control</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">{['Current','Review due soon','Stale','Expired','Superseded'].map(s=><Freshness key={s} s={s}/>)}</div>
+          <ul className="text-[12px] mt-3 space-y-1 list-disc pl-5 text-ink2 dark:text-[#9aa0a6]">
+            <li>Display a visible warning and retain citation traceability.</li><li>State publication and review dates; never silently merge with current info.</li><li>Identify a newer source when one exists.</li></ul></Card>
+        <Card className="p-5"><SectionTitle icon="compare" sub="When two approved documents disagree">Conflict control</SectionTitle>
+          <ul className="text-[12px] space-y-1 list-disc pl-5 text-ink2 dark:text-[#9aa0a6]">
+            <li>Surface both views with dates and owners.</li><li>Use most-recent governing source only when metadata establishes supersession.</li><li>Otherwise trigger specialist review — no automatic resolution.</li></ul>
+          <div className="mt-3 border border-gred/30 rounded-xl p-3 bg-gred/5 text-[12px]"><b>Open:</b> C-02 EM equities — House View vs Risk note. No supersession → specialist review.</div></Card>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ============================================================
+   PAGE 6 — QUALITY ANALYTICS
+   ============================================================ */
+function MetricCard({label,value,unit,def,tone='blue',trend}){
+  const [open,setOpen]=useState(false);
+  return <Card className="p-4 relative">
+    <div className="flex items-center justify-between">
+      <span className="text-[12px] text-ink2 dark:text-[#9aa0a6]">{label}</span>
+      <button onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} aria-label={"Definition of "+label} className="text-ink3 hover:text-gblue"><Icon n="info" size={14}/></button></div>
+    <div className="flex items-end gap-1 mt-1"><span className="text-2xl font-semibold">{value}</span><span className="text-[12px] text-ink3 mb-1">{unit}</span>
+      {trend&&<span className={"text-[11px] mb-1 ml-auto "+(trend>0?'text-ggreen':'text-gred')}>{trend>0?'▲':'▼'} {Math.abs(trend)}</span>}</div>
+    {open&&<div className="absolute z-20 top-10 right-3 w-56 card p-2.5 text-[11px] text-ink2 dark:text-[#c4c7cc] fadeUp shadow-pop"><b className="text-ink dark:text-white">Prototype metric definition</b><br/>{def}</div>}
+  </Card>;
+}
+function ChartCard({title,sub,children,h=220}){return <Card className="p-4"><SectionTitle sub={sub}>{title}</SectionTitle><div style={{height:h}}><ResponsiveContainer>{children}</ResponsiveContainer></div></Card>;}
+const PIE_COLORS=['#34A853','#FBBC04','#EA4335','#1A73E8','#80868B'];
+
+function PageQuality(){
+  const {setRoute}=useApp();
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="chart" sub="Trustworthy-retrieval evaluation — not just chatbot usage. All metrics illustrative."
+      right={<div className="hidden md:flex gap-1.5">{['Last 8 weeks','All users','All models'].map(f=><Badge key={f} tone="gray" icon="filter">{f}</Badge>)}</div>}>Quality analytics</SectionTitle>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricCard label="Retrieval precision" value={M.retrievalPrecision.toFixed(0)} unit="%" trend={2} def="Relevant retrieved passages ÷ total retrieved passages."/>
+      <MetricCard label="Citation coverage" value={M.citationCoverage.toFixed(0)} unit="%" trend={1} def="Material claims with ≥1 citation ÷ total material claims."/>
+      <MetricCard label="Abstention accuracy" value={M.abstentionAccuracy.toFixed(0)} unit="%" trend={3} def="Correct abstentions ÷ all cases where the system should abstain."/>
+      <MetricCard label="Unsupported claim rate" value={M.unsupportedClaimRate.toFixed(1)} unit="%" trend={-1} def="Unsupported material claims ÷ total generated material claims."/>
+    </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricCard label="Average time saved" value={M.averageTimeSaved.toFixed(0)} unit="min/query" trend={1} def="User baseline research time − actual assisted completion time."/>
+      <MetricCard label="User satisfaction" value={M.userSatisfaction.toFixed(1)} unit="/5" trend={0.1} def="Average rating from structured user feedback."/>
+      <MetricCard label="Manual correction rate" value={M.manualCorrectionRate.toFixed(0)} unit="%" trend={-1} def="Answers edited by the user ÷ submitted answers."/>
+      <MetricCard label="Queries reviewed" value={M.queriesReviewed} unit="" trend={8} def="Count of answers sampled for human review this period."/>
+    </div>
+    <div className="grid lg:grid-cols-2 gap-4">
+      <ChartCard title="Quality trend by week" sub="Precision, coverage & abstention accuracy">
+        <LineChart data={METRICS} margin={{left:-20,right:6,top:6}}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/><XAxis dataKey="date" tick={AXIS} axisLine={false} tickLine={false}/><YAxis tick={AXIS} axisLine={false} tickLine={false} domain={[60,100]}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Legend wrapperStyle={{fontSize:11}}/>
+          <Line dataKey="retrievalPrecision" stroke="#1A73E8" strokeWidth={2} dot={false} name="Precision"/>
+          <Line dataKey="citationCoverage" stroke="#34A853" strokeWidth={2} dot={false} name="Coverage"/>
+          <Line dataKey="abstentionAccuracy" stroke="#FBBC04" strokeWidth={2} dot={false} name="Abstention acc."/></LineChart></ChartCard>
+      <ChartCard title="Precision vs citation coverage" sub="Each point = one week">
+        <ScatterChart margin={{left:-20,right:6,top:6}}><CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/>
+          <XAxis type="number" dataKey="x" name="Precision" tick={AXIS} axisLine={false} tickLine={false} domain={[74,96]}/>
+          <YAxis type="number" dataKey="y" name="Coverage" tick={AXIS} axisLine={false} tickLine={false} domain={[80,98]}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}} cursor={{strokeDasharray:'3 3'}}/><Scatter data={SCATTER} fill="#1A73E8"/></ScatterChart></ChartCard>
+      <ChartCard title="Unsupported claim rate by query category" sub="Lower is better">
+        <BarChart data={CATEGORY_UNSUPPORTED} margin={{left:-20,right:6,top:6}}><CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/>
+          <XAxis dataKey="cat" tick={AXIS} axisLine={false} tickLine={false}/><YAxis tick={AXIS} axisLine={false} tickLine={false}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Bar dataKey="rate" fill="#EA4335" radius={[6,6,0,0]} name="Unsupported %"/></BarChart></ChartCard>
+      <ChartCard title="Confidence vs manual correction" sub="Higher confidence → fewer corrections">
+        <BarChart data={CONF_CORR} margin={{left:-20,right:6,top:6}}><CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/>
+          <XAxis dataKey="band" tick={AXIS} axisLine={false} tickLine={false}/><YAxis tick={AXIS} axisLine={false} tickLine={false}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Bar dataKey="correction" fill="#4285F4" radius={[6,6,0,0]} name="Correction %"/></BarChart></ChartCard>
+      <ChartCard title="Time saved by workflow" sub="Minutes per query">
+        <BarChart data={TIMESAVE} layout="vertical" margin={{left:20,right:10,top:6}}><CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/>
+          <XAxis type="number" tick={AXIS} axisLine={false} tickLine={false}/><YAxis type="category" dataKey="wf" tick={AXIS} axisLine={false} tickLine={false} width={70}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Bar dataKey="v" fill="#34A853" radius={[0,6,6,0]} name="Minutes"/></BarChart></ChartCard>
+      <ChartCard title="Abstention outcome breakdown" sub="Correct vs over/under-abstention">
+        <PieChart><Pie data={ABSTAIN_BREAK} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={2}>
+          {ABSTAIN_BREAK.map((e,i)=><Cell key={i} fill={PIE_COLORS[i]}/>)}</Pie>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Legend wrapperStyle={{fontSize:11}}/></PieChart></ChartCard>
+      <ChartCard title="Source health distribution" sub="Approved set freshness">
+        <PieChart><Pie data={SRC_HEALTH} dataKey="value" nameKey="name" outerRadius={70}>
+          {SRC_HEALTH.map((e,i)=><Cell key={i} fill={PIE_COLORS[i]}/>)}</Pie>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Legend wrapperStyle={{fontSize:11}}/></PieChart></ChartCard>
+      <ChartCard title="Quality funnel: query → accepted briefing" sub="Conversion through evidence gates">
+        <BarChart data={FUNNEL} margin={{left:-20,right:6,top:6}}><CartesianGrid strokeDasharray="3 3" stroke="#E8EAED"/>
+          <XAxis dataKey="stage" tick={AXIS} axisLine={false} tickLine={false}/><YAxis tick={AXIS} axisLine={false} tickLine={false}/>
+          <RTooltip contentStyle={{fontSize:12,borderRadius:12}}/><Bar dataKey="v" fill="#174EA6" radius={[6,6,0,0]} name="Count"/></BarChart></ChartCard>
+    </div>
+    <Card className="p-4"><SectionTitle icon="route" sub="Every metric drills down to the underlying query records" right={<Btn variant="ghost" icon="arrow" onClick={()=>setRoute('audit')}>Open records</Btn>}>Drill-down: sample query records</SectionTitle>
+      <div className="overflow-x-auto"><table className="w-full text-[12.5px] min-w-[760px]">
+        <thead><tr className="text-left text-ink3 text-[11px] uppercase border-b brd">{['Query','Status','Confidence','Citations','Correction','Time saved'].map(h=><th key={h} className="py-2 px-2 font-medium">{h}</th>)}</tr></thead>
+        <tbody>{SAMPLE_QUERIES.slice(0,6).map((q,i)=><tr key={i} className="border-b brd last:border-0 hover:bg-black/[.03] dark:hover:bg-white/5">
+          <td className="py-2 px-2 font-medium max-w-[240px] truncate">{q.prompt}</td><td className="px-2"><StatusChip status={q.status}/></td>
+          <td className="px-2"><Confidence v={q.confidence}/></td><td className="px-2">{q.citations}</td>
+          <td className="px-2">{q.feedback==='Corrected'?<Badge tone="yellow">edited</Badge>:'—'}</td><td className="px-2 text-ggreen">{q.timeSaved} min</td></tr>)}</tbody></table></div>
+    </Card>
+  </div>;
+}
+
+/* ============================================================
+   PAGE 7 — FEEDBACK REVIEW
+   ============================================================ */
+function PageFeedback(){
+  const [sel,setSel]=useState(null);const [issue,setIssue]=useState('All');
+  const issues=['All','Wrong source','Missing source','Citation mismatch','Outdated information','Conflicting information','Unsupported claim','Over-abstention','Under-abstention','Poor summary','Policy concern'];
+  const rows=FEEDBACK.filter(f=>issue==='All'||f.issue===issue);
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="msg" sub="Review feedback, corrections and root causes">Feedback review</SectionTitle>
+    <Card className="p-3 flex flex-wrap gap-1.5 items-center">
+      {issues.map(i=><button key={i} onClick={()=>setIssue(i)} className={"text-[12px] px-2.5 py-1 rounded-full border "+(issue===i?'bg-gblue text-white border-gblue':'brd hover:bg-black/5 dark:hover:bg-white/10 text-ink2 dark:text-[#c4c7cc]')}>{i}</button>)}
+      <span className="ml-auto text-[12px] text-ink3">{rows.length} records</span></Card>
+    <Card className="p-0 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-[12.5px] min-w-[900px]">
+      <thead><tr className="text-left text-ink3 text-[11px] uppercase tracking-wide border-b brd surf2">{['Query','Status','Rating','Issue','Comment','Correction','Reviewer','Review','Root cause'].map(h=><th key={h} className="py-2.5 px-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+      <tbody>{rows.map(f=><tr key={f.id} onClick={()=>setSel(f)} className="border-b brd last:border-0 hover:bg-gblue/5 cursor-pointer">
+        <td className="py-2.5 px-3 font-medium max-w-[200px] truncate">{f.query}</td><td className="px-3"><StatusChip status={f.status}/></td>
+        <td className="px-3"><div className="flex">{[1,2,3,4,5].map(s=><Icon key={s} n="star" size={12} cls={s<=f.rating?'text-gyellow':'text-ink3'} style={s<=f.rating?{fill:'#FBBC04'}:{}}/>)}</div></td>
+        <td className="px-3"><Badge tone="yellow">{f.issue}</Badge></td><td className="px-3 text-ink2 dark:text-[#9aa0a6] max-w-[180px] truncate">{f.comment}</td>
+        <td className="px-3">{f.correction!=='—'?<Badge tone="blue">submitted</Badge>:'—'}</td><td className="px-3 whitespace-nowrap">{f.reviewer}</td>
+        <td className="px-3"><Badge tone={f.reviewStatus==='Resolved'?'green':f.reviewStatus==='Open'?'red':'yellow'}>{f.reviewStatus}</Badge></td>
+        <td className="px-3"><Badge tone="gray">{f.root}</Badge></td></tr>)}</tbody></table></div></Card>
+    {sel&&<div className="fixed inset-0 z-50 flex justify-end"><div className="flex-1 bg-black/40" onClick={()=>setSel(null)}/>
+      <div className="w-full max-w-lg bg-white dark:bg-[#12161c] h-full overflow-y-auto shadow-pop fadeUp">
+        <div className="sticky top-0 bg-white dark:bg-[#12161c] border-b brd px-4 py-3 flex items-start gap-2 z-10">
+          <div className="flex-1"><h3 className="text-[14px] font-semibold">Side-by-side review</h3><p className="text-[11px] text-ink3">{sel.id} · {sel.query}</p></div>
+          <button onClick={()=>setSel(null)} className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"><Icon n="x"/></button></div>
+        <div className="p-4 space-y-3 text-[13px]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border border-gred/30 rounded-xl p-3 bg-gred/5"><h4 className="text-[11px] font-semibold text-gred uppercase mb-1">Original answer</h4><p>{sel.original}</p><p className="text-[10px] text-ink3 mt-1">Original citations: [3]</p></div>
+            <div className="border border-ggreen/30 rounded-xl p-3 bg-ggreen/5"><h4 className="text-[11px] font-semibold text-ggreen uppercase mb-1">User correction</h4><p>{sel.corrected}</p><p className="text-[10px] text-ink3 mt-1">Corrected citations: [1]</p></div>
+          </div>
+          <div className="surf2 rounded-xl p-3 space-y-1.5">
+            <div className="flex justify-between"><span className="text-ink3">Issue type</span><Badge tone="yellow">{sel.issue}</Badge></div>
+            <div className="flex justify-between"><span className="text-ink3">Root-cause classification</span><Badge tone="blue">{sel.root}</Badge></div>
+            <div className="flex justify-between"><span className="text-ink3">Reviewer</span><span className="font-medium">{sel.reviewer}</span></div>
+            <div className="flex justify-between"><span className="text-ink3">Review status</span><Badge tone={sel.reviewStatus==='Resolved'?'green':'yellow'}>{sel.reviewStatus}</Badge></div></div>
+          <div><h4 className="text-[11px] font-semibold text-ink2 uppercase mb-1">Updated expected answer</h4><p className="border brd rounded-xl p-3">{sel.corrected}</p></div>
+          <div className="flex gap-1.5"><Btn variant="primary" icon="check">Accept resolution</Btn><Btn variant="outline" icon="usercheck">Escalate</Btn></div>
+        </div></div></div>}
+  </div>;
+}
+
+/* ============================================================
+   PAGE 8 — AUDIT TRAIL
+   ============================================================ */
+const AUDIT_CHAIN=['Query submitted','User entitlements checked','Sources selected','Passages retrieved','Stale sources excluded','Conflicts detected','Answer generated','Claims checked','Citations attached','Guardrails evaluated','Answer shown or withheld','Feedback recorded'];
+function PageAudit(){
+  const [sel,setSel]=useState(null);const [q,setQ]=useState('');
+  const rows=AUDIT.filter(a=>!q||a.query.toLowerCase().includes(q.toLowerCase())||a.user.toLowerCase().includes(q.toLowerCase()));
+  const exp=(fmt)=>alert('Illustrative export ('+fmt+') — '+rows.length+' audit events. No real file generated in prototype.');
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="audit" sub="Searchable log — what was asked, retrieved, answered, and which controls fired"
+      right={<div className="flex gap-1.5">{['CSV','JSON','Review package'].map(f=><Btn key={f} variant="outline" icon="download" onClick={()=>exp(f)}>{f}</Btn>)}</div>}>Audit trail</SectionTitle>
+    <Card className="p-3 flex items-center gap-2"><div className="flex items-center gap-2 h-9 px-3 rounded-full surf2 border brd w-72"><Icon n="search" size={15} cls="text-ink3"/>
+      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search query, user, or ID…" className="bg-transparent outline-none text-[13px] w-full"/></div>
+      <span className="ml-auto text-[12px] text-ink3">{rows.length} events</span></Card>
+    <Card className="p-0 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-[12px] min-w-[1100px]">
+      <thead><tr className="text-left text-ink3 text-[11px] uppercase tracking-wide border-b brd surf2">{['Timestamp','Query ID','User','Role','Client','Query','Collection','Status','Conf','Cites','Controls','Model'].map(h=><th key={h} className="py-2.5 px-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+      <tbody>{rows.map(a=><tr key={a.id} onClick={()=>setSel(a)} className="border-b brd last:border-0 hover:bg-gblue/5 cursor-pointer">
+        <td className="py-2.5 px-3 text-ink3 whitespace-nowrap">{a.ts.replace('T',' ')}</td><td className="px-3 font-medium">{a.qid}</td>
+        <td className="px-3 whitespace-nowrap">{a.user}</td><td className="px-3 text-ink2 dark:text-[#9aa0a6] whitespace-nowrap">{a.role}</td>
+        <td className="px-3 text-ink3 whitespace-nowrap">{a.client}</td><td className="px-3 max-w-[180px] truncate">{a.query}</td>
+        <td className="px-3"><Badge tone="blue">{a.collection}</Badge></td><td className="px-3"><StatusChip status={a.status}/></td>
+        <td className="px-3">{a.confidence}%</td><td className="px-3">{a.citations}</td>
+        <td className="px-3">{a.controls.map((c,i)=><Badge key={i} tone="gray" className="mr-1">{c}</Badge>)}</td><td className="px-3 text-ink3">{a.model}</td></tr>)}</tbody></table></div></Card>
+    {sel&&<div className="fixed inset-0 z-50 flex justify-end"><div className="flex-1 bg-black/40" onClick={()=>setSel(null)}/>
+      <div className="w-full max-w-md bg-white dark:bg-[#12161c] h-full overflow-y-auto shadow-pop fadeUp">
+        <div className="sticky top-0 bg-white dark:bg-[#12161c] border-b brd px-4 py-3 flex items-start gap-2 z-10">
+          <div className="flex-1"><h3 className="text-[14px] font-semibold">Event chain · {sel.qid}</h3><p className="text-[11px] text-ink3">{sel.query}</p></div>
+          <button onClick={()=>setSel(null)} className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"><Icon n="x"/></button></div>
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-[12px] surf2 rounded-xl p-3">{[['User',sel.user],['Role',sel.role],['Client',sel.client],['Status',sel.status],['Confidence',sel.confidence+'%'],['Model',sel.model],['Prompt',sel.promptV],['Export',sel.exportAct]].map(([k,v])=><div key={k}><span className="text-[10px] text-ink3 block">{k}</span><span className="font-medium">{v}</span></div>)}</div>
+          <div className="relative pl-6">
+            {AUDIT_CHAIN.map((s,i)=><div key={i} className="relative pb-3">
+              <span className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-gblue/15 text-gblue grid place-items-center text-[9px] font-bold">{i+1}</span>
+              {i<AUDIT_CHAIN.length-1&&<span className="absolute -left-[17px] top-4 bottom-0 w-px bg-divid dark:bg-[#262b33]"/>}
+              <p className="text-[12.5px] font-medium">{s}</p>
+              <p className="text-[10px] text-ink3">{sel.ts.replace('T',' ')} · ok</p></div>)}
+          </div>
+          <div className="flex gap-1.5">{['CSV','JSON'].map(f=><Btn key={f} variant="outline" icon="download">{f}</Btn>)}</div>
+        </div></div></div>}
+  </div>;
+}
+
+/* ============================================================
+   PAGE 9 — SETTINGS AND GOVERNANCE
+   ============================================================ */
+function SettingGroup({icon,title,items}){return <Card className="p-5">
+  <SectionTitle icon={icon}>{title}</SectionTitle>
+  <div className="space-y-3">{items.map((it,i)=><div key={i} className="flex items-center justify-between gap-3">
+    <div><p className="text-[13px] font-medium">{it[0]}</p>{it[2]&&<p className="text-[11px] text-ink3">{it[2]}</p>}</div>
+    <span className="text-[12px]">{it[1]}</span></div>)}</div></Card>;}
+function Slider({v}){return <span className="inline-flex items-center gap-2"><span className="w-24 h-1.5 surf2 rounded-full relative"><span className="absolute inset-y-0 left-0 bg-gblue rounded-full" style={{width:v}}/></span></span>;}
+function PageSettings(){
+  const [k,setK]=useState('55%');
+  return <div className="space-y-4 fadeUp">
+    <SectionTitle icon="settings" sub="Configurable prototype settings — illustrative only">Settings and governance</SectionTitle>
+    <div className="grid lg:grid-cols-2 gap-4">
+      <SettingGroup icon="db" title="Knowledge" items={[
+        ['Active source collections','5 selected'],['Allowed document types','8 types'],['Freshness thresholds','Review 60d / Expire 90d'],['Document hierarchy','House View > Strategy > Note'],['Metadata requirements','Effective + Review dates']]}/>
+      <SettingGroup icon="search" title="Retrieval" items={[
+        ['Top-k passages',<Slider v="60%"/>,'Currently 8'],['Minimum reranking score',<Slider v="70%"/>,'0.70'],['Diversity setting',<Slider v="40%"/>],['Exact-match boost','On'],['Effective-date weighting','High']]}/>
+      <SettingGroup icon="filecheck" title="Answer" items={[
+        ['Standard briefing length','Standard'],['Maximum unsupported statements','0'],['Minimum citation coverage','90%'],['Confidence threshold',<Slider v="55%"/>,'55%'],['Abstention threshold',<Slider v="40%"/>,'40%']]}/>
+      <SettingGroup icon="shield" title="Controls" items={[
+        ['Investment recommendation detection','On'],['Stale-content restriction','On'],['Restricted-content handling','Entitlement check'],['Conflict escalation','Specialist review'],['Mandatory specialist review','Conflicts, Restricted']]}/>
+    </div>
+    <SettingGroup icon="lock" title="Governance" items={[
+      ['Prompt version','pv-2026.09'],['Model version','brief-orch-v1.4'],['Test-set version','ts-2026.08'],['Last evaluation date','12 Sep 2026'],['Designated control owner','Risk & Controls team'],['Designated document owner','Knowledge Management']]}/>
+  </div>;
+}
+
+/* ============================================================
+   APP ROOT
+   ============================================================ */
+function App(){
+  const [route,setRoute]=useState('home');
+  const [dark,setDark]=useState(false);
+  const [navOpen,setNavOpen]=useState(true);
+  const [ds,setDs]=useState('Global Wealth — Approved');
+  const [currentDemo,setCurrentDemo]=useState('q1');
+  const [pending,setPending]=useState(false);
+  const [drawerOpen,setDrawerOpen]=useState(false);
+  const mainRef=useRef();
+
+  useEffect(()=>{document.documentElement.classList.toggle('dark',dark);},[dark]);
+  useEffect(()=>{if(mainRef.current)mainRef.current.scrollTo(0,0);},[route]);
+
+  const runDemo=(key,promptText)=>{
+    setCurrentDemo(key);
+    if(promptText&&BRIEFINGS[key])BRIEFINGS[key].prompt=promptText;
+    setRoute('briefing');setPending(true);setDrawerOpen(false);
+  };
+
+  const PAGES={home:PageHome,briefing:PageBriefing,market:PageMarket,library:PageLibrary,risk:PageRisk,quality:PageQuality,feedback:PageFeedback,audit:PageAudit,settings:PageSettings};
+  const Page=PAGES[route]||PageHome;
+
+  const ctx={route,setRoute,dark,setDark,navOpen,setNavOpen,ds,setDs,currentDemo,setCurrentDemo,pending,setPending,runDemo,drawerOpen,setDrawerOpen};
+
+  return <AppCtx.Provider value={ctx}>
+    <div className="h-full flex flex-col">
+      <TopBar/>
+      <div className="flex-1 flex min-h-0">
+        <NavRail/>
+        <main ref={mainRef} className="flex-1 overflow-y-auto pb-20 md:pb-6">
+          <div className="max-w-[1440px] mx-auto p-3 md:p-5 space-y-4">
+            <Disclaimer/>
+            {route!=='briefing'&&<TrustBar/>}
+            <Page/>
+          </div>
+        </main>
+      </div>
+      <MobileNav/>
+    </div>
+  </AppCtx.Provider>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
